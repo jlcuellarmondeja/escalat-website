@@ -1,0 +1,65 @@
+---
+const pains = [
+  "Llamadas y mensajes que no llegas a contestar a tiempo.",
+  "Citas apuntadas en mil sitios y algún hueco que se pierde.",
+  "Tareas repetitivas que se comen tus mejores horas.",
+  "Clientes y proveedores en la cabeza, no en un sistema.",
+];
+---
+<section class="section problema" id="problema">
+  <div class="container problema__grid">
+    <div class="problema__intro reveal">
+      <p class="eyebrow">El problema</p>
+      <h2 class="section-title">Llevar un negocio tú solo agota.</h2>
+      <p class="section-intro">
+        Cuando eres tú quien atiende, factura, agenda y encima produce, el día no da de sí.
+        No necesitas trabajar más horas: necesitas que la tecnología cargue con lo repetitivo.
+      </p>
+    </div>
+
+    <ul class="problema__list reveal">
+      {pains.map((p) => (
+        <li>
+          <span class="problema__dot" aria-hidden="true"></span>
+          {p}
+        </li>
+      ))}
+      <li class="problema__promise">
+        <strong class="text-gold">Ahí entra Escalar:</strong> te montamos el sistema para que eso
+        deje de depender de ti.
+      </li>
+    </ul>
+  </div>
+</section>
+
+<style>
+  .problema__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(32px, 6vw, 72px);
+    align-items: center;
+  }
+  .problema__list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+  .problema__list li {
+    display: flex;
+    gap: 12px;
+    color: var(--color-text-2);
+    font-size: 17px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .problema__dot {
+    flex: none;
+    margin-top: 9px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--color-gold);
+  }
+  .problema__promise {
+    border-bottom: 0 !important;
+    color: var(--color-text) !important;
+    display: block !important;
+  }
+  @media (max-width: 780px) {
+    .problema__grid { grid-template-columns: 1fr; }
+  }
+</style>

@@ -1,0 +1,42 @@
+---
+interface Props {
+  showText?: boolean;
+  size?: number;
+  href?: string | null;
+}
+const { showText = true, size = 26, href = "/" } = Astro.props;
+const Tag = href ? "a" : "span";
+---
+<Tag class="logo" {...href ? { href } : {}} aria-label="Escalar — inicio">
+  <svg
+    class="logo__mark"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    role="img"
+    aria-hidden="true"
+    fill="none"
+  >
+    <rect x="3" y="15" width="4.4" height="6" rx="1" fill="currentColor" opacity="0.55" />
+    <rect x="9.8" y="9.5" width="4.4" height="11.5" rx="1" fill="currentColor" opacity="0.8" />
+    <rect x="16.6" y="4" width="4.4" height="17" rx="1" fill="currentColor" />
+  </svg>
+  {showText && <span class="logo__text">Escalar</span>}
+</Tag>
+
+<style>
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--color-gold);
+  }
+  .logo__mark { flex: none; }
+  .logo__text {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: 1.35rem;
+    letter-spacing: 0.01em;
+    color: var(--color-gold);
+  }
+</style>

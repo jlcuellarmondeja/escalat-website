@@ -1,0 +1,88 @@
+---
+import Icon from "./Icon.astro";
+
+const servicios = [
+  {
+    icon: "chat",
+    title: "Atención que nunca duerme",
+    desc: "Un chatbot responde a cada cliente al instante, de día y de noche. Ninguna consulta se queda sin contestar.",
+  },
+  {
+    icon: "phone",
+    title: "Operadora que atiende por ti",
+    desc: "Una operadora virtual recoge llamadas, resuelve dudas frecuentes y te pasa solo lo que de verdad importa.",
+  },
+  {
+    icon: "calendar",
+    title: "Tu agenda, en piloto automático",
+    desc: "Reservas, confirmaciones y recordatorios solos. Se acabaron los huecos vacíos y las citas olvidadas.",
+  },
+  {
+    icon: "users",
+    title: "Todo tu negocio, en un sitio",
+    desc: "Clientes, conversaciones y tareas ordenados y a mano. Tú decides; el sistema se acuerda por ti.",
+  },
+  {
+    icon: "truck",
+    title: "Proveedores bajo control",
+    desc: "Pedidos, contactos y vencimientos en un único lugar, con avisos antes de que algo se te pase.",
+  },
+  {
+    icon: "bolt",
+    title: "Automatizaciones a medida",
+    desc: "¿Hay algo que repites cada semana a mano? Lo estudiamos y lo dejamos funcionando solo.",
+  },
+];
+---
+<section class="section section--alt" id="servicios">
+  <div class="container">
+    <div class="servicios__head reveal">
+      <p class="eyebrow">Servicios</p>
+      <h2 class="section-title">Lo que podemos quitarte de encima</h2>
+      <p class="section-intro">
+        Cada pieza funciona por separado o todas juntas. Empezamos por lo que más te aprieta hoy
+        y vamos sumando a medida que tu negocio crece.
+      </p>
+    </div>
+
+    <div class="servicios__grid">
+      {servicios.map((s) => (
+        <article class="card servicio reveal">
+          <span class="servicio__icon"><Icon name={s.icon} size={24} /></span>
+          <h3 class="servicio__title">{s.title}</h3>
+          <p class="servicio__desc">{s.desc}</p>
+        </article>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .servicios__head { margin-bottom: 48px; }
+  .servicios__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .servicio__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: rgba(201, 162, 39, 0.1);
+    border: 1px solid rgba(201, 162, 39, 0.25);
+    color: var(--color-gold);
+    margin-bottom: 18px;
+  }
+  .servicio__title { font-size: 21px; margin-bottom: 10px; }
+  .servicio__desc { color: var(--color-text-2); font-size: 15.5px; }
+
+  @media (max-width: 900px) {
+    .servicios__grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .servicios__grid { grid-template-columns: 1fr; }
+  }
+</style>

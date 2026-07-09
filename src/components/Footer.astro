@@ -1,0 +1,95 @@
+---
+import Logo from "./Logo.astro";
+const year = new Date().getFullYear();
+---
+<footer class="site-footer">
+  <div class="container site-footer__inner">
+    <div class="site-footer__brand">
+      <Logo />
+      <p>Soluciones informáticas con IA para que una sola persona pueda con todo su negocio.</p>
+    </div>
+
+    <div class="site-footer__cols">
+      <div>
+        <h4>Escalar</h4>
+        <a href="#servicios">Servicios</a>
+        <a href="#como-funciona">Cómo funciona</a>
+        <a href="#sobre">Sobre Escalar</a>
+        <a href="#contacto">Contacto</a>
+      </div>
+      <div>
+        <h4>Legal</h4>
+        <a href="/aviso-legal">Aviso legal</a>
+        <a href="/privacidad">Privacidad</a>
+      </div>
+      <div>
+        <h4>Hablemos</h4>
+        <a href="mailto:hola@escalar.es">hola@escalar.es</a>
+        <a href="#contacto">Solicita que te llamemos</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="container site-footer__bottom">
+    <span>© {year} Escalar. Todos los derechos reservados.</span>
+    <span>Hecho con cariño en la Comunitat Valenciana.</span>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--color-border);
+    background: var(--color-bg-2);
+    padding-top: 56px;
+  }
+  .site-footer__inner {
+    display: grid;
+    grid-template-columns: 1.3fr 2fr;
+    gap: 48px;
+  }
+  .site-footer__brand p {
+    margin-top: 16px;
+    color: var(--color-text-2);
+    font-size: 15px;
+    max-width: 34ch;
+  }
+  .site-footer__cols {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+  .site-footer__cols h4 {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    margin-bottom: 14px;
+  }
+  .site-footer__cols a {
+    display: block;
+    padding: 5px 0;
+    color: var(--color-text-2);
+    font-size: 15px;
+    transition: color 0.2s ease;
+  }
+  .site-footer__cols a:hover { color: var(--color-gold-soft); }
+
+  .site-footer__bottom {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 48px;
+    padding-top: 24px;
+    padding-bottom: 32px;
+    border-top: 1px solid var(--color-border);
+    color: var(--color-muted);
+    font-size: 13px;
+  }
+
+  @media (max-width: 720px) {
+    .site-footer__inner { grid-template-columns: 1fr; gap: 36px; }
+    .site-footer__cols { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>

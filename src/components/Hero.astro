@@ -1,0 +1,107 @@
+---
+const trust = [
+  { icon: "adjustments", label: "Hecho a medida" },
+  { icon: "rocket", label: "Puesta en marcha rápida" },
+  { icon: "handshake", label: "Soporte cercano" },
+];
+---
+<section class="hero">
+  <div class="hero__glow" aria-hidden="true"></div>
+  <div class="container hero__inner">
+    <p class="eyebrow reveal">
+      <span class="eyebrow-dot" aria-hidden="true"></span>
+      Soluciones con inteligencia artificial para pymes y autónomos
+    </p>
+
+    <h1 class="hero__title reveal">
+      Menos gestión.<br />
+      <span class="text-gold">Más negocio.</span>
+    </h1>
+
+    <p class="hero__subtitle reveal">
+      Automatizamos la atención al cliente, la agenda y las tareas que te roban el día.
+      Tú te dedicas a tu negocio; de lo repetitivo nos encargamos nosotros.
+    </p>
+
+    <div class="hero__actions reveal">
+      <a href="#contacto" class="btn btn-primary" data-open-chat>Habla con nuestro asistente</a>
+      <a href="#contacto" class="btn btn-secondary">Solicita que te llamemos</a>
+    </div>
+
+    <ul class="hero__trust reveal">
+      {trust.map((t) => (
+        <li>
+          <svg class="hero__trust-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            {t.icon === "adjustments" && <><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /><circle cx="9" cy="6" r="2" fill="var(--color-bg)" /><circle cx="15" cy="12" r="2" fill="var(--color-bg)" /><circle cx="8" cy="18" r="2" fill="var(--color-bg)" /></>}
+            {t.icon === "rocket" && <><path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.9.7-2.2-.1-3a2.1 2.1 0 0 0-2.9 0Z" /><path d="M12 15 9 12c.5-3 2.5-8 9.5-9 .5 6-2.5 8.5-6.5 12Z" /><path d="M9 12H4s.5-2.5 2-3.5 4 0 4 0" /><path d="M12 15v5s2.5-.5 3.5-2 0-4 0-4" /></>}
+            {t.icon === "handshake" && <><path d="m11 17 2 2a1 1 0 0 0 3-1" /><path d="m14 16 2.5 2.5a1 1 0 0 0 3-1l-3.9-3.9" /><path d="m7 15 3.4 3.4a1 1 0 0 0 3-1l-4-4" /><path d="M14.5 9 12 6.5 5 13a1 1 0 0 0 3 3" /><path d="M14.5 9 19 4.5" /><path d="M9.5 9 5 4.5" /></>}
+          </svg>
+          {t.label}
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
+
+<style>
+  .hero { position: relative; overflow: hidden; }
+  .hero__glow {
+    position: absolute;
+    top: -30%;
+    left: 50%;
+    width: 900px;
+    height: 700px;
+    transform: translateX(-50%);
+    background: radial-gradient(closest-side, rgba(201, 162, 39, 0.12), transparent 70%);
+    pointer-events: none;
+  }
+  .hero__inner {
+    position: relative;
+    text-align: center;
+    padding-block: clamp(72px, 12vw, 140px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .eyebrow-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--color-gold); box-shadow: 0 0 0 4px rgba(201, 162, 39, 0.18);
+  }
+  .hero__title {
+    font-size: clamp(42px, 8vw, 76px);
+    line-height: 1.05;
+    margin-top: 26px;
+    max-width: 14ch;
+  }
+  .hero__subtitle {
+    margin-top: 24px;
+    color: var(--color-text-2);
+    font-size: clamp(17px, 2.4vw, 21px);
+    max-width: 54ch;
+  }
+  .hero__actions {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 36px;
+  }
+  .hero__trust {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 28px;
+    justify-content: center;
+    margin-top: 40px;
+    color: var(--color-muted);
+    font-size: 14px;
+  }
+  .hero__trust li { display: inline-flex; align-items: center; gap: 8px; }
+  .hero__trust-icon { width: 18px; height: 18px; color: var(--color-gold); }
+
+  .reveal:nth-child(2) { transition-delay: 0.05s; }
+  .reveal:nth-child(3) { transition-delay: 0.1s; }
+  .reveal:nth-child(4) { transition-delay: 0.15s; }
+  .reveal:nth-child(5) { transition-delay: 0.2s; }
+</style>

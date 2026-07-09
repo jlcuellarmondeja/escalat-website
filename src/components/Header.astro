@@ -1,0 +1,115 @@
+---
+import Logo from "./Logo.astro";
+
+const links = [
+  { href: "#servicios", label: "Servicios" },
+  { href: "#como-funciona", label: "Cómo funciona" },
+  { href: "#sobre", label: "Sobre Escalar" },
+];
+---
+<header class="site-header" id="top">
+  <div class="container site-header__inner">
+    <Logo />
+
+    <nav class="site-nav" aria-label="Navegación principal">
+      {links.map((l) => <a href={l.href}>{l.label}</a>)}
+    </nav>
+
+    <a href="#contacto" class="btn btn-primary site-header__cta">Solicita una demo</a>
+
+    <button class="site-header__menu" aria-label="Abrir menú" data-menu-toggle>
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+
+  <nav class="site-header__mobile" aria-label="Navegación móvil" data-mobile-nav hidden>
+    {links.map((l) => <a href={l.href} data-mobile-link>{l.label}</a>)}
+    <a href="#contacto" class="btn btn-primary" data-mobile-link>Solicita una demo</a>
+  </nav>
+</header>
+
+<script>
+  const toggle = document.querySelector("[data-menu-toggle]");
+  const mobile = document.querySelector("[data-mobile-nav]") as HTMLElement | null;
+  toggle?.addEventListener("click", () => {
+    if (!mobile) return;
+    const open = !mobile.hasAttribute("hidden");
+    if (open) mobile.setAttribute("hidden", "");
+    else mobile.removeAttribute("hidden");
+    toggle.classList.toggle("is-open", !open);
+  });
+  document.querySelectorAll("[data-mobile-link]").forEach((el) =>
+    el.addEventListener("click", () => mobile?.setAttribute("hidden", ""))
+  );
+</script>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .site-header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    height: 68px;
+  }
+  .site-nav {
+    display: flex;
+    gap: 30px;
+    margin-left: auto;
+    margin-right: 8px;
+  }
+  .site-nav a {
+    font-size: 14px;
+    color: var(--color-text-2);
+    transition: color 0.2s ease;
+  }
+  .site-nav a:hover { color: var(--color-gold-soft); }
+  .site-header__cta { padding: 10px 18px; font-size: 14px; }
+
+  .site-header__menu {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    padding: 6px;
+  }
+  .site-header__menu span {
+    width: 22px; height: 2px; background: var(--color-text); border-radius: 2px;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+  .site-header__menu.is-open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .site-header__menu.is-open span:nth-child(2) { opacity: 0; }
+  .site-header__menu.is-open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  .site-header__mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 24px 20px;
+    border-top: 1px solid var(--color-border);
+  }
+  .site-header__mobile[hidden] { display: none; }
+  .site-header__mobile a:not(.btn) {
+    padding: 10px 0;
+    color: var(--color-text-2);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .site-header__mobile .btn { margin-top: 8px; }
+
+  @media (max-width: 820px) {
+    .site-nav, .site-header__cta { display: none; }
+    .site-header__menu { display: flex; }
+  }
+  @media (min-width: 821px) {
+    .site-header__mobile { display: none; }
+  }
+</style>

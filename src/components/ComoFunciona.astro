@@ -1,0 +1,89 @@
+---
+import Icon from "./Icon.astro";
+
+const pasos = [
+  {
+    n: "01",
+    icon: "search",
+    title: "Diagnóstico",
+    desc: "Hablamos de tu negocio y detectamos qué te roba más tiempo y dónde se te escapan clientes.",
+  },
+  {
+    n: "02",
+    icon: "pencil",
+    title: "Diseñamos la solución",
+    desc: "Te proponemos qué automatizar y cómo, con un plan claro, sin tecnicismos y a tu ritmo.",
+  },
+  {
+    n: "03",
+    icon: "rocket",
+    title: "Lo ponemos en marcha",
+    desc: "Montamos, conectamos y probamos todo. Tú solo tienes que ver cómo empieza a funcionar.",
+  },
+  {
+    n: "04",
+    icon: "chart",
+    title: "Tú gestionas menos",
+    desc: "Recuperas horas y dejas de perder oportunidades. Seguimos contigo para mejorar y crecer.",
+  },
+];
+---
+<section class="section" id="como-funciona">
+  <div class="container">
+    <div class="como__head reveal">
+      <p class="eyebrow">Cómo funciona</p>
+      <h2 class="section-title">De agobio a piloto automático, en cuatro pasos</h2>
+    </div>
+
+    <ol class="como__grid">
+      {pasos.map((p) => (
+        <li class="como__step reveal">
+          <div class="como__top">
+            <span class="como__num">{p.n}</span>
+            <span class="como__icon"><Icon name={p.icon} size={22} /></span>
+          </div>
+          <h3 class="como__title">{p.title}</h3>
+          <p class="como__desc">{p.desc}</p>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>
+
+<style>
+  .como__head { margin-bottom: 48px; }
+  .como__grid {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    counter-reset: step;
+  }
+  .como__step {
+    position: relative;
+    padding: 24px 22px;
+    border-top: 2px solid var(--color-border-2);
+  }
+  .como__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .como__num {
+    font-family: var(--font-serif);
+    font-size: 30px;
+    color: var(--color-gold);
+  }
+  .como__icon { color: var(--color-text-2); }
+  .como__title { font-size: 19px; margin-bottom: 8px; }
+  .como__desc { color: var(--color-text-2); font-size: 15px; }
+
+  @media (max-width: 900px) {
+    .como__grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 520px) {
+    .como__grid { grid-template-columns: 1fr; }
+  }
+</style>

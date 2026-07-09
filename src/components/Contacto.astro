@@ -1,0 +1,157 @@
+---
+import Icon from "./Icon.astro";
+---
+<section class="section section--alt" id="contacto">
+  <div class="container contacto__grid">
+    <div class="contacto__intro reveal">
+      <p class="eyebrow">Hablemos</p>
+      <h2 class="section-title">Cuéntanos qué te quita el sueño</h2>
+      <p class="section-intro">
+        La forma más rápida: habla con nuestro asistente aquí mismo. Te resuelve dudas y, si
+        quieres, deja tus datos para que te preparemos una propuesta. ¿Prefieres el teléfono?
+        Pide que te llamemos.
+      </p>
+
+      <div class="contacto__actions">
+        <button class="btn btn-primary" data-open-chat>
+          <Icon name="robot" size={18} /> Habla con el asistente
+        </button>
+      </div>
+
+      <ul class="contacto__alt">
+        <li>
+          <Icon name="send" size={18} />
+          <a href="mailto:hola@escalar.es">hola@escalar.es</a>
+        </li>
+        <li>
+          <Icon name="chat" size={18} />
+          <a href="https://wa.me/34600000000" target="_blank" rel="noopener">WhatsApp directo</a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="contacto__card reveal">
+      <h3 class="contacto__card-title">Solicita que te llamemos</h3>
+      <p class="contacto__card-sub">Déjanos tus datos y te llamamos cuando mejor te venga.</p>
+
+      <form class="callback-form" data-callback-form novalidate>
+        <div class="field">
+          <label for="cb-name">Nombre</label>
+          <input id="cb-name" name="name" type="text" autocomplete="name" required placeholder="Tu nombre" />
+        </div>
+        <div class="field">
+          <label for="cb-phone">Teléfono</label>
+          <input id="cb-phone" name="phone" type="tel" autocomplete="tel" required placeholder="600 000 000" />
+        </div>
+        <div class="field">
+          <label for="cb-when">¿Cuándo te viene mejor?</label>
+          <select id="cb-when" name="when">
+            <option value="Mañana">Por la mañana</option>
+            <option value="Tarde">Por la tarde</option>
+            <option value="Indiferente">Me da igual</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="cb-msg">¿Qué necesitas? <span class="opt">(opcional)</span></label>
+          <textarea id="cb-msg" name="message" rows="3" placeholder="Cuéntanos brevemente tu caso"></textarea>
+        </div>
+
+        <label class="consent">
+          <input type="checkbox" name="consent" required />
+          <span>He leído y acepto la <a href="/privacidad">política de privacidad</a>.</span>
+        </label>
+
+        <button type="submit" class="btn btn-primary callback-form__submit">Quiero que me llaméis</button>
+        <p class="callback-form__status" data-status role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>("[data-callback-form]");
+  const status = document.querySelector<HTMLElement>("[data-status]");
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!form.reportValidity()) return;
+    const btn = form.querySelector<HTMLButtonElement>("[type=submit]");
+    const data = Object.fromEntries(new FormData(form).entries());
+    if (btn) { btn.disabled = true; btn.textContent = "Enviando…"; }
+    if (status) { status.textContent = ""; status.className = "callback-form__status"; }
+    try {
+      const res = await fetch("/api/callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("bad");
+      form.reset();
+      if (status) { status.textContent = "¡Recibido! Te llamamos muy pronto."; status.classList.add("is-ok"); }
+    } catch {
+      if (status) {
+        status.innerHTML = 'No hemos podido enviarlo. Escríbenos a <a href="mailto:hola@escalar.es">hola@escalar.es</a>.';
+        status.classList.add("is-err");
+      }
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "Quiero que me llaméis"; }
+    }
+  });
+</script>
+
+<style>
+  .contacto__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(32px, 6vw, 64px);
+    align-items: start;
+  }
+  .contacto__actions { margin-top: 28px; }
+  .contacto__alt { list-style: none; padding: 0; margin-top: 26px; display: flex; flex-direction: column; gap: 12px; }
+  .contacto__alt li { display: flex; align-items: center; gap: 10px; color: var(--color-text-2); }
+  .contacto__alt :global(svg) { color: var(--color-gold); }
+  .contacto__alt a { transition: color 0.2s ease; }
+  .contacto__alt a:hover { color: var(--color-gold-soft); }
+
+  .contacto__card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: clamp(24px, 4vw, 36px);
+  }
+  .contacto__card-title { font-size: 24px; }
+  .contacto__card-sub { color: var(--color-text-2); font-size: 15px; margin: 8px 0 24px; }
+
+  .field { margin-bottom: 16px; display: flex; flex-direction: column; gap: 7px; }
+  .field label { font-size: 14px; color: var(--color-text-2); }
+  .field .opt { color: var(--color-muted); }
+  .field input, .field select, .field textarea {
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--color-text);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border-2);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    width: 100%;
+    transition: border-color 0.2s ease;
+  }
+  .field textarea { resize: vertical; }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none; border-color: var(--color-gold);
+  }
+  .field input::placeholder, .field textarea::placeholder { color: var(--color-muted); }
+
+  .consent { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: var(--color-text-2); margin: 6px 0 20px; }
+  .consent input { margin-top: 3px; accent-color: var(--color-gold); }
+  .consent a { color: var(--color-gold); }
+
+  .callback-form__submit { width: 100%; }
+  .callback-form__status { margin-top: 14px; font-size: 14px; min-height: 1em; }
+  .callback-form__status.is-ok { color: var(--color-gold-soft); }
+  .callback-form__status.is-err { color: #e08a7a; }
+  .callback-form__status :global(a) { color: var(--color-gold); }
+
+  @media (max-width: 820px) {
+    .contacto__grid { grid-template-columns: 1fr; }
+  }
+</style>
