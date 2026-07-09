@@ -1,0 +1,23 @@
+services:
+  escalat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: escalat
+    restart: unless-stopped
+    expose:
+      - "4321"
+    environment:
+      HOST: 0.0.0.0
+      PORT: "4321"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      CHAT_MODEL: ${CHAT_MODEL:-claude-haiku-4-5}
+    networks:
+      - shared-network
+    labels:
+      - "com.example.app=escalat"
+
+networks:
+  shared-network:
+    external: true
+    name: escalat-caddy_shared-network

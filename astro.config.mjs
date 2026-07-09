@@ -1,11 +1,11 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import netlify from '@astrojs/netlify';
+import node from '@astrojs/node';
 
 // https://astro.build/config
 export default defineConfig({
   site: 'https://escalat.es',
-  adapter: netlify(),
+  adapter: node({ mode: 'standalone' }),
   output: 'static',
   i18n: {
     defaultLocale: 'es',

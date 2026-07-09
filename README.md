@@ -67,12 +67,15 @@ con `useT(Astro.currentLocale)`. Hay selector ES/EN en la cabecera y etiquetas `
 
 ## Despliegue
 
-Configurado con el adaptador **@astrojs/netlify**. Para publicar en Netlify:
+Autoalojado con **Docker** detrás de un **Caddy compartido** (mismo patrón que las demás apps),
+con autodespliegue vía **GitHub Actions** (push a `master` → SSH al servidor → `deploy.sh`).
 
-1. Sube el repositorio a GitHub y conéctalo en Netlify (o usa `netlify deploy`).
-2. En Netlify → *Site settings → Environment variables*, añade `ANTHROPIC_API_KEY`
-   (y opcionalmente `CHAT_MODEL`).
-3. Conecta tu dominio (p. ej. `escalat.es`).
+- Adaptador de Astro: **@astrojs/node** (modo *standalone*) → servidor Node que escucha en `:4321`.
+- `Dockerfile`, `docker-compose.yml` (se une a la red externa `escalat-caddy_shared-network`),
+  `deploy.sh` y `.github/workflows/deploy.yml`.
+- Secretos: `.env` en el servidor (con `ANTHROPIC_API_KEY`), nunca en git.
+
+Guía paso a paso en **[DEPLOY.md](DEPLOY.md)**.
 
 ## Pendiente de completar
 

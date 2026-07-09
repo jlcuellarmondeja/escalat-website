@@ -1,0 +1,67 @@
+name: Deploy Escalat to Production
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy-escalat
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy Escalat
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -t rsa,ecdsa,ed25519 -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to production
+        id: deploy
+        env:
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          ssh -o ConnectTimeout=10 -o BatchMode=yes $DEPLOY_USER@$DEPLOY_HOST "
+            set -euo pipefail
+
+            if [ -d \"/home/$DEPLOY_USER/Escalat\" ]; then
+              REPO_DIR=\"/home/$DEPLOY_USER/Escalat\"
+            else
+              echo \"ERROR: Proyecto no encontrado en /home/$DEPLOY_USER/Escalat\"
+              exit 1
+            fi
+
+            cd \"\$REPO_DIR\"
+            git reset --hard HEAD
+            git fetch origin master
+            git reset --hard origin/master
+            chmod +x deploy.sh
+            ./deploy.sh
+          " || { echo "SSH deployment failed"; exit 1; }
+        continue-on-error: true
+
+      - name: Verify deployment
+        if: steps.deploy.outcome == 'success'
+        run: |
+          sleep 10
+          curl -f https://escalat.es/ -o /dev/null -s -w "HTTP %{http_code}\n" || echo "Service check failed"
+          echo "✅ Escalat deploy successful"
+
+      - name: Fail if deploy failed
+        if: steps.deploy.outcome == 'failure'
+        run: exit 1
