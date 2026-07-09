@@ -39,10 +39,10 @@ jobs:
           ssh -o ConnectTimeout=10 -o BatchMode=yes $DEPLOY_USER@$DEPLOY_HOST "
             set -euo pipefail
 
-            if [ -d \"/home/$DEPLOY_USER/Escalat\" ]; then
-              REPO_DIR=\"/home/$DEPLOY_USER/Escalat\"
+            if [ -d \"/home/$DEPLOY_USER/escalat-website\" ]; then
+              REPO_DIR=\"/home/$DEPLOY_USER/escalat-website\"
             else
-              echo \"ERROR: Proyecto no encontrado en /home/$DEPLOY_USER/Escalat\"
+              echo \"ERROR: Proyecto no encontrado en /home/$DEPLOY_USER/escalat-website\"
               exit 1
             fi
 

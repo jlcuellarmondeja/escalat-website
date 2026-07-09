@@ -8,18 +8,18 @@ Arquitectura: **Cloudflare (DNS/proxy) → servidor → Caddy → contenedor `es
 ## Requisitos
 - Servidor con Docker y Docker Compose (el mismo de las otras apps).
 - La red externa de Caddy ya existe: `escalat-caddy_shared-network`.
-- Repo en GitHub (p. ej. `jlcuellarmondeja/Escalat`).
+- Repo en GitHub (p. ej. `jlcuellarmondeja/escalat-website`).
 
 ## Paso 1 — Clonar el repo en el servidor
-Clónalo en `~/Escalat` (la ruta que usa el workflow):
+Clónalo en `~/escalat-website` (la ruta que usa el workflow):
 ```bash
 cd ~
-git clone https://github.com/jlcuellarmondeja/Escalat.git
-cd Escalat
+git clone https://github.com/jlcuellarmondeja/escalat-website.git
+cd escalat-website
 ```
 
 ## Paso 2 — Variables de entorno (`.env`)
-En `~/Escalat/.env` (no se sube a git):
+En `~/escalat-website/.env` (no se sube a git):
 ```bash
 cp .env.example .env
 nano .env
@@ -63,7 +63,7 @@ Apunta el dominio a tu servidor (igual que las otras apps):
 ## Paso 6 — Desplegar
 Primer despliegue manual (o para probar) desde el servidor:
 ```bash
-cd ~/Escalat
+cd ~/escalat-website
 chmod +x deploy.sh
 ./deploy.sh
 ```

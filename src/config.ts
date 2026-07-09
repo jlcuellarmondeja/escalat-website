@@ -5,7 +5,7 @@
  * (código de país + número, sin "+", sin espacios). Ejemplo España: 34612345678.
  * ⚠️ Cámbialo por tu número real de WhatsApp.
  */
-export const WHATSAPP_NUMBER = "34600000000";
+export const WHATSAPP_NUMBER = "34666361395";
 
 export const CONTACT_EMAIL = "contacto@escalat.es";
 
