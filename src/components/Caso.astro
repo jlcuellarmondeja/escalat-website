@@ -1,26 +1,23 @@
 ---
 import Icon from "./Icon.astro";
+import { useT } from "../i18n/ui";
+const t = useT(Astro.currentLocale).caso;
+const pointIcons = ["clock", "send", "shield"];
 ---
 <section class="section section--alt" id="caso">
   <div class="container">
     <div class="caso__card reveal">
       <div class="caso__content">
-        <p class="eyebrow">Esto ya funciona</p>
-        <h2 class="caso__title">Un vigilante que no pega ojo</h2>
-        <p class="caso__desc">
-          Construimos una automatización que vigila una web las 24 horas y avisa al instante,
-          por Telegram, en cuanto aparece una cita disponible. Nadie tiene que estar recargando
-          la página: el sistema mira por ti y te avisa justo cuando importa.
-        </p>
+        <p class="eyebrow">{t.eyebrow}</p>
+        <h2 class="caso__title">{t.title}</h2>
+        <p class="caso__desc">{t.desc}</p>
         <ul class="caso__points">
-          <li><Icon name="clock" size={18} /> Comprueba disponibilidad de forma continua, sin descanso.</li>
-          <li><Icon name="send" size={18} /> Notificación inmediata en el móvil cuando hay hueco.</li>
-          <li><Icon name="shield" size={18} /> Estable, discreto y funcionando en segundo plano.</li>
+          {t.points.map((p, i) => (
+            <li><Icon name={pointIcons[i]} size={18} /> {p}</li>
+          ))}
         </ul>
         <p class="caso__foot">
-          Es un ejemplo pequeño con una idea grande detrás: <span class="text-gold">que la
-          tecnología trabaje mientras tú vives</span>. Lo mismo hacemos con tu atención al
-          cliente, tu agenda o tus tareas del día a día.
+          {t.footPre}<span class="text-gold">{t.footAccent}</span>{t.footPost}
         </p>
       </div>
 
@@ -29,19 +26,19 @@ import Icon from "./Icon.astro";
           <div class="tg__bar">
             <span class="tg__avatar"><Icon name="robot" size={18} /></span>
             <div>
-              <div class="tg__name">Monitor de citas</div>
-              <div class="tg__status">bot</div>
+              <div class="tg__name">{t.demo.name}</div>
+              <div class="tg__status">{t.demo.status}</div>
             </div>
           </div>
           <div class="tg__body">
             <div class="tg__msg">
-              <strong>✅ ¡Cita disponible!</strong><br />
-              Se ha detectado un hueco libre. Entra a reservar cuanto antes.
-              <span class="tg__time">09:41</span>
+              <strong>{t.demo.alertTitle}</strong><br />
+              {t.demo.alertBody}
+              <span class="tg__time">{t.demo.time1}</span>
             </div>
             <div class="tg__msg tg__msg--muted">
-              Comprobando de nuevo en 5 min…
-              <span class="tg__time">09:46</span>
+              {t.demo.recheck}
+              <span class="tg__time">{t.demo.time2}</span>
             </div>
           </div>
         </div>
@@ -74,7 +71,6 @@ import Icon from "./Icon.astro";
   .caso__points :global(svg) { color: var(--color-gold); flex: none; }
   .caso__foot { color: var(--color-text-2); font-size: 15.5px; }
 
-  /* Mock de aviso de Telegram */
   .tg {
     background: var(--color-bg);
     border: 1px solid var(--color-border-2);

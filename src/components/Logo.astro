@@ -7,21 +7,21 @@ interface Props {
 const { showText = true, size = 26, href = "/" } = Astro.props;
 const Tag = href ? "a" : "span";
 ---
-<Tag class="logo" {...href ? { href } : {}} aria-label="Escalar — inicio">
+<Tag class="logo" {...href ? { href } : {}} aria-label="Escalat — inicio">
   <svg
     class="logo__mark"
     width={size}
     height={size}
-    viewBox="0 0 24 24"
+    viewBox="0 0 32 32"
     role="img"
     aria-hidden="true"
     fill="none"
   >
-    <rect x="3" y="15" width="4.4" height="6" rx="1" fill="currentColor" opacity="0.55" />
-    <rect x="9.8" y="9.5" width="4.4" height="11.5" rx="1" fill="currentColor" opacity="0.8" />
-    <rect x="16.6" y="4" width="4.4" height="17" rx="1" fill="currentColor" />
+    <path d="M4 21 L10 18 L16 21 L10 24 Z" fill="currentColor" stroke="var(--color-bg)" stroke-width="0.9" />
+    <path d="M10 16 L16 13 L22 16 L16 19 Z" fill="currentColor" stroke="var(--color-bg)" stroke-width="0.9" />
+    <path d="M16 11 L22 8 L28 11 L22 14 Z" fill="currentColor" stroke="var(--color-bg)" stroke-width="0.9" />
   </svg>
-  {showText && <span class="logo__text">Escalar</span>}
+  {showText && <span class="logo__text">Escalat</span>}
 </Tag>
 
 <style>

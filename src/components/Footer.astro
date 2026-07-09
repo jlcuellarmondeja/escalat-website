@@ -1,38 +1,43 @@
 ---
 import Logo from "./Logo.astro";
+import { useT, getLang, localePath, legalPaths } from "../i18n/ui";
+
+const locale = Astro.currentLocale;
+const lang = getLang(locale);
+const t = useT(locale).footer;
+const legal = legalPaths[lang];
 const year = new Date().getFullYear();
 ---
 <footer class="site-footer">
   <div class="container site-footer__inner">
     <div class="site-footer__brand">
-      <Logo />
-      <p>Soluciones informáticas con IA para que una sola persona pueda con todo su negocio.</p>
+      <Logo href={localePath("/", locale)} />
+      <p>{t.tagline}</p>
     </div>
 
     <div class="site-footer__cols">
       <div>
-        <h4>Escalar</h4>
-        <a href="#servicios">Servicios</a>
-        <a href="#como-funciona">Cómo funciona</a>
-        <a href="#sobre">Sobre Escalar</a>
-        <a href="#contacto">Contacto</a>
+        <h4>Escalat</h4>
+        <a href={localePath("/#servicios", locale)}>{t.services}</a>
+        <a href={localePath("/#como-funciona", locale)}>{t.how}</a>
+        <a href={localePath("/#sobre", locale)}>{t.about}</a>
+        <a href={localePath("/#contacto", locale)}>{t.contact}</a>
       </div>
       <div>
-        <h4>Legal</h4>
-        <a href="/aviso-legal">Aviso legal</a>
-        <a href="/privacidad">Privacidad</a>
+        <h4>{t.legalTitle}</h4>
+        <a href={legal.notice}>{t.legalNotice}</a>
+        <a href={legal.privacy}>{t.privacy}</a>
       </div>
       <div>
-        <h4>Hablemos</h4>
-        <a href="mailto:hola@escalar.es">hola@escalar.es</a>
-        <a href="#contacto">Solicita que te llamemos</a>
+        <h4>{t.talkTitle}</h4>
+        <a href="mailto:contacto@escalat.es">contacto@escalat.es</a>
+        <a href={localePath("/#contacto", locale)}>{t.callback}</a>
       </div>
     </div>
   </div>
 
   <div class="container site-footer__bottom">
-    <span>© {year} Escalar. Todos los derechos reservados.</span>
-    <span>Hecho con cariño en la Comunitat Valenciana.</span>
+    <span>© {year} Escalat. {t.rights}</span>
   </div>
 </footer>
 

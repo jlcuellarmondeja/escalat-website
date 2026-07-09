@@ -1,38 +1,20 @@
 ---
 import Icon from "./Icon.astro";
-
-const pasos = [
-  {
-    n: "01",
-    icon: "search",
-    title: "Diagnóstico",
-    desc: "Hablamos de tu negocio y detectamos qué te roba más tiempo y dónde se te escapan clientes.",
-  },
-  {
-    n: "02",
-    icon: "pencil",
-    title: "Diseñamos la solución",
-    desc: "Te proponemos qué automatizar y cómo, con un plan claro, sin tecnicismos y a tu ritmo.",
-  },
-  {
-    n: "03",
-    icon: "rocket",
-    title: "Lo ponemos en marcha",
-    desc: "Montamos, conectamos y probamos todo. Tú solo tienes que ver cómo empieza a funcionar.",
-  },
-  {
-    n: "04",
-    icon: "chart",
-    title: "Tú gestionas menos",
-    desc: "Recuperas horas y dejas de perder oportunidades. Seguimos contigo para mejorar y crecer.",
-  },
+import { useT } from "../i18n/ui";
+const t = useT(Astro.currentLocale).como;
+const meta = [
+  { n: "01", icon: "search" },
+  { n: "02", icon: "pencil" },
+  { n: "03", icon: "rocket" },
+  { n: "04", icon: "chart" },
 ];
+const pasos = t.steps.map((step, i) => ({ ...step, ...meta[i] }));
 ---
 <section class="section" id="como-funciona">
   <div class="container">
     <div class="como__head reveal">
-      <p class="eyebrow">Cómo funciona</p>
-      <h2 class="section-title">De agobio a piloto automático, en cuatro pasos</h2>
+      <p class="eyebrow">{t.eyebrow}</p>
+      <h2 class="section-title">{t.title}</h2>
     </div>
 
     <ol class="como__grid">

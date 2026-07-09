@@ -1,29 +1,20 @@
 ---
-const valores = [
-  { title: "Cercanía", desc: "Hablamos claro, sin tecnicismos. Tratas siempre con la persona que hace las cosas." },
-  { title: "A medida", desc: "Nada de plantillas genéricas. Cada solución se ajusta a cómo funciona tu negocio." },
-  { title: "Honestidad", desc: "Si algo no te hace falta, te lo decimos. Preferimos que confíes a venderte de más." },
-];
+import { useT } from "../i18n/ui";
+const t = useT(Astro.currentLocale).sobre;
 ---
 <section class="section" id="sobre">
   <div class="container sobre__grid">
     <div class="sobre__intro reveal">
-      <p class="eyebrow">Sobre Escalar</p>
-      <h2 class="section-title">Creemos que una sola persona puede con todo un negocio</h2>
-      <p class="section-intro">
-        Escalar nace de una idea sencilla: la tecnología debería estar de tu lado, no complicarte
-        la vida. Diseñamos herramientas con inteligencia artificial que se encargan de lo
-        repetitivo para que tú te dediques a lo que solo tú sabes hacer.
-      </p>
+      <p class="eyebrow">{t.eyebrow}</p>
+      <h2 class="section-title">{t.title}</h2>
+      <p class="section-intro">{t.intro}</p>
       <p class="sobre__text">
-        Empezamos ayudando a pequeños negocios y autónomos, y crecemos contigo: hoy un chatbot o
-        una agenda automática; mañana, todo tu negocio funcionando casi solo. Ese es el objetivo,
-        y por eso nos llamamos <span class="text-gold">Escalar</span>.
+        {t.textPre}<span class="text-gold">{t.textAccent}</span>{t.textPost}
       </p>
     </div>
 
     <ul class="sobre__valores reveal">
-      {valores.map((v) => (
+      {t.valores.map((v) => (
         <li>
           <h3>{v.title}</h3>
           <p>{v.desc}</p>

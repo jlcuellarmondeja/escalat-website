@@ -1,48 +1,16 @@
 ---
 import Icon from "./Icon.astro";
-
-const servicios = [
-  {
-    icon: "chat",
-    title: "Atención que nunca duerme",
-    desc: "Un chatbot responde a cada cliente al instante, de día y de noche. Ninguna consulta se queda sin contestar.",
-  },
-  {
-    icon: "phone",
-    title: "Operadora que atiende por ti",
-    desc: "Una operadora virtual recoge llamadas, resuelve dudas frecuentes y te pasa solo lo que de verdad importa.",
-  },
-  {
-    icon: "calendar",
-    title: "Tu agenda, en piloto automático",
-    desc: "Reservas, confirmaciones y recordatorios solos. Se acabaron los huecos vacíos y las citas olvidadas.",
-  },
-  {
-    icon: "users",
-    title: "Todo tu negocio, en un sitio",
-    desc: "Clientes, conversaciones y tareas ordenados y a mano. Tú decides; el sistema se acuerda por ti.",
-  },
-  {
-    icon: "truck",
-    title: "Proveedores bajo control",
-    desc: "Pedidos, contactos y vencimientos en un único lugar, con avisos antes de que algo se te pase.",
-  },
-  {
-    icon: "bolt",
-    title: "Automatizaciones a medida",
-    desc: "¿Hay algo que repites cada semana a mano? Lo estudiamos y lo dejamos funcionando solo.",
-  },
-];
+import { useT } from "../i18n/ui";
+const t = useT(Astro.currentLocale).servicios;
+const icons = ["chat", "phone", "calendar", "users", "truck", "bolt"];
+const servicios = t.items.map((item, i) => ({ ...item, icon: icons[i] }));
 ---
 <section class="section section--alt" id="servicios">
   <div class="container">
     <div class="servicios__head reveal">
-      <p class="eyebrow">Servicios</p>
-      <h2 class="section-title">Lo que podemos quitarte de encima</h2>
-      <p class="section-intro">
-        Cada pieza funciona por separado o todas juntas. Empezamos por lo que más te aprieta hoy
-        y vamos sumando a medida que tu negocio crece.
-      </p>
+      <p class="eyebrow">{t.eyebrow}</p>
+      <h2 class="section-title">{t.title}</h2>
+      <p class="section-intro">{t.intro}</p>
     </div>
 
     <div class="servicios__grid">

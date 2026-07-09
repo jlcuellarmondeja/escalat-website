@@ -1,30 +1,47 @@
 ---
 import Logo from "./Logo.astro";
+import { useT, getLang, localePath } from "../i18n/ui";
+
+const locale = Astro.currentLocale;
+const lang = getLang(locale);
+const t = useT(locale).nav;
 
 const links = [
-  { href: "#servicios", label: "Servicios" },
-  { href: "#como-funciona", label: "Cómo funciona" },
-  { href: "#sobre", label: "Sobre Escalar" },
+  { href: localePath("/#servicios", locale), label: t.services },
+  { href: localePath("/#como-funciona", locale), label: t.how },
+  { href: localePath("/#sobre", locale), label: t.about },
 ];
+const ctaHref = localePath("/#contacto", locale);
 ---
 <header class="site-header" id="top">
   <div class="container site-header__inner">
-    <Logo />
+    <Logo href={localePath("/", locale)} />
 
     <nav class="site-nav" aria-label="Navegación principal">
       {links.map((l) => <a href={l.href}>{l.label}</a>)}
     </nav>
 
-    <a href="#contacto" class="btn btn-primary site-header__cta">Solicita una demo</a>
+    <div class="lang" role="group" aria-label="Idioma">
+      <a href="/" class:list={["lang__opt", { active: lang === "es" }]}>ES</a>
+      <span aria-hidden="true">/</span>
+      <a href="/en/" class:list={["lang__opt", { active: lang === "en" }]}>EN</a>
+    </div>
 
-    <button class="site-header__menu" aria-label="Abrir menú" data-menu-toggle>
+    <a href={ctaHref} class="btn btn-primary site-header__cta">{t.cta}</a>
+
+    <button class="site-header__menu" aria-label="Menú" data-menu-toggle>
       <span></span><span></span><span></span>
     </button>
   </div>
 
   <nav class="site-header__mobile" aria-label="Navegación móvil" data-mobile-nav hidden>
     {links.map((l) => <a href={l.href} data-mobile-link>{l.label}</a>)}
-    <a href="#contacto" class="btn btn-primary" data-mobile-link>Solicita una demo</a>
+    <a href={ctaHref} class="btn btn-primary" data-mobile-link>{t.cta}</a>
+    <div class="lang lang--mobile">
+      <a href="/" class:list={["lang__opt", { active: lang === "es" }]}>ES</a>
+      <span aria-hidden="true">/</span>
+      <a href="/en/" class:list={["lang__opt", { active: lang === "en" }]}>EN</a>
+    </div>
   </nav>
 </header>
 
@@ -56,14 +73,13 @@ const links = [
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
+    gap: 18px;
     height: 68px;
   }
   .site-nav {
     display: flex;
-    gap: 30px;
+    gap: 28px;
     margin-left: auto;
-    margin-right: 8px;
   }
   .site-nav a {
     font-size: 14px;
@@ -72,6 +88,11 @@ const links = [
   }
   .site-nav a:hover { color: var(--color-gold-soft); }
   .site-header__cta { padding: 10px 18px; font-size: 14px; }
+
+  .lang { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--color-muted); }
+  .lang__opt { color: var(--color-muted); transition: color 0.2s ease; }
+  .lang__opt:hover { color: var(--color-text-2); }
+  .lang__opt.active { color: var(--color-gold); font-weight: 500; }
 
   .site-header__menu {
     display: none;
@@ -98,18 +119,19 @@ const links = [
     border-top: 1px solid var(--color-border);
   }
   .site-header__mobile[hidden] { display: none; }
-  .site-header__mobile a:not(.btn) {
+  .site-header__mobile a:not(.btn):not(.lang__opt) {
     padding: 10px 0;
     color: var(--color-text-2);
     border-bottom: 1px solid var(--color-border);
   }
   .site-header__mobile .btn { margin-top: 8px; }
+  .lang--mobile { margin-top: 14px; justify-content: center; }
 
-  @media (max-width: 820px) {
-    .site-nav, .site-header__cta { display: none; }
+  @media (max-width: 860px) {
+    .site-nav, .site-header__cta, .site-header__inner > .lang { display: none; }
     .site-header__menu { display: flex; }
   }
-  @media (min-width: 821px) {
+  @media (min-width: 861px) {
     .site-header__mobile { display: none; }
   }
 </style>

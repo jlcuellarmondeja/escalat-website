@@ -1,67 +1,77 @@
 ---
 import Icon from "./Icon.astro";
+import { WHATSAPP_NUMBER, CONTACT_EMAIL } from "../config";
+import { useT, getLang, legalPaths } from "../i18n/ui";
+const t = useT(Astro.currentLocale).contacto;
+const privacyHref = legalPaths[getLang(Astro.currentLocale)].privacy;
 ---
 <section class="section section--alt" id="contacto">
   <div class="container contacto__grid">
     <div class="contacto__intro reveal">
-      <p class="eyebrow">Hablemos</p>
-      <h2 class="section-title">Cuéntanos qué te quita el sueño</h2>
-      <p class="section-intro">
-        La forma más rápida: habla con nuestro asistente aquí mismo. Te resuelve dudas y, si
-        quieres, deja tus datos para que te preparemos una propuesta. ¿Prefieres el teléfono?
-        Pide que te llamemos.
-      </p>
+      <p class="eyebrow">{t.eyebrow}</p>
+      <h2 class="section-title">{t.title}</h2>
+      <p class="section-intro">{t.intro}</p>
 
       <div class="contacto__actions">
         <button class="btn btn-primary" data-open-chat>
-          <Icon name="robot" size={18} /> Habla con el asistente
+          <Icon name="robot" size={18} /> {t.ctaChat}
         </button>
       </div>
 
       <ul class="contacto__alt">
         <li>
-          <Icon name="send" size={18} />
-          <a href="mailto:hola@escalar.es">hola@escalar.es</a>
+          <Icon name="chat" size={18} />
+          <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener">{t.waDirect}</a>
         </li>
         <li>
-          <Icon name="chat" size={18} />
-          <a href="https://wa.me/34600000000" target="_blank" rel="noopener">WhatsApp directo</a>
+          <Icon name="send" size={18} />
+          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
         </li>
       </ul>
     </div>
 
     <div class="contacto__card reveal">
-      <h3 class="contacto__card-title">Solicita que te llamemos</h3>
-      <p class="contacto__card-sub">Déjanos tus datos y te llamamos cuando mejor te venga.</p>
+      <h3 class="contacto__card-title">{t.formTitle}</h3>
+      <p class="contacto__card-sub">{t.formSub}</p>
 
-      <form class="callback-form" data-callback-form novalidate>
+      <form
+        class="callback-form"
+        data-callback-form
+        data-wa-intro={t.waIntro}
+        data-wa-call={t.waCallText}
+        data-wa-phone={t.waPhone}
+        data-wa-when={t.waWhen}
+        data-wa-need={t.waNeed}
+        data-status-ok={t.statusOk}
+        novalidate
+      >
         <div class="field">
-          <label for="cb-name">Nombre</label>
-          <input id="cb-name" name="name" type="text" autocomplete="name" required placeholder="Tu nombre" />
+          <label for="cb-name">{t.labelName}</label>
+          <input id="cb-name" name="name" type="text" autocomplete="name" required placeholder={t.phName} />
         </div>
         <div class="field">
-          <label for="cb-phone">Teléfono</label>
-          <input id="cb-phone" name="phone" type="tel" autocomplete="tel" required placeholder="600 000 000" />
+          <label for="cb-phone">{t.labelPhone}</label>
+          <input id="cb-phone" name="phone" type="tel" autocomplete="tel" required placeholder={t.phPhone} />
         </div>
         <div class="field">
-          <label for="cb-when">¿Cuándo te viene mejor?</label>
+          <label for="cb-when">{t.labelWhen}</label>
           <select id="cb-when" name="when">
-            <option value="Mañana">Por la mañana</option>
-            <option value="Tarde">Por la tarde</option>
-            <option value="Indiferente">Me da igual</option>
+            <option value={t.whenMorning}>{t.whenMorning}</option>
+            <option value={t.whenAfternoon}>{t.whenAfternoon}</option>
+            <option value={t.whenAny}>{t.whenAny}</option>
           </select>
         </div>
         <div class="field">
-          <label for="cb-msg">¿Qué necesitas? <span class="opt">(opcional)</span></label>
-          <textarea id="cb-msg" name="message" rows="3" placeholder="Cuéntanos brevemente tu caso"></textarea>
+          <label for="cb-msg">{t.labelMsg} <span class="opt">{t.optional}</span></label>
+          <textarea id="cb-msg" name="message" rows="3" placeholder={t.phMsg}></textarea>
         </div>
 
         <label class="consent">
           <input type="checkbox" name="consent" required />
-          <span>He leído y acepto la <a href="/privacidad">política de privacidad</a>.</span>
+          <span>{t.consentPre}<a href={privacyHref}>{t.consentLink}</a>{t.consentPost}</span>
         </label>
 
-        <button type="submit" class="btn btn-primary callback-form__submit">Quiero que me llaméis</button>
+        <button type="submit" class="btn btn-primary callback-form__submit">{t.submit}</button>
         <p class="callback-form__status" data-status role="status" aria-live="polite"></p>
       </form>
     </div>
@@ -69,31 +79,29 @@ import Icon from "./Icon.astro";
 </section>
 
 <script>
+  import { waLink } from "../config";
+
   const form = document.querySelector<HTMLFormElement>("[data-callback-form]");
   const status = document.querySelector<HTMLElement>("[data-status]");
-  form?.addEventListener("submit", async (e) => {
+
+  form?.addEventListener("submit", (e) => {
     e.preventDefault();
     if (!form.reportValidity()) return;
-    const btn = form.querySelector<HTMLButtonElement>("[type=submit]");
-    const data = Object.fromEntries(new FormData(form).entries());
-    if (btn) { btn.disabled = true; btn.textContent = "Enviando…"; }
-    if (status) { status.textContent = ""; status.className = "callback-form__status"; }
-    try {
-      const res = await fetch("/api/callback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("bad");
-      form.reset();
-      if (status) { status.textContent = "¡Recibido! Te llamamos muy pronto."; status.classList.add("is-ok"); }
-    } catch {
-      if (status) {
-        status.innerHTML = 'No hemos podido enviarlo. Escríbenos a <a href="mailto:hola@escalar.es">hola@escalar.es</a>.';
-        status.classList.add("is-err");
-      }
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = "Quiero que me llaméis"; }
+    const d = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+    const s = form.dataset;
+
+    const msg =
+      `${s.waIntro} ${d.name}. ${s.waCall}` +
+      `\n${s.waPhone}: ${d.phone}` +
+      (d.when ? `\n${s.waWhen}: ${d.when}` : "") +
+      (d.message ? `\n${s.waNeed}: ${d.message}` : "");
+
+    window.open(waLink(msg), "_blank", "noopener");
+
+    form.reset();
+    if (status) {
+      status.textContent = s.statusOk || "";
+      status.className = "callback-form__status is-ok";
     }
   });
 </script>
