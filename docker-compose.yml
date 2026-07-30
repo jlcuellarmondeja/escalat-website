@@ -10,7 +10,12 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: "4321"
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      N8N_CHAT_WEBHOOK_URL: ${N8N_CHAT_WEBHOOK_URL:-}
+      N8N_CHAT_BASIC_USER: ${N8N_CHAT_BASIC_USER:-}
+      N8N_CHAT_BASIC_PASSWORD: ${N8N_CHAT_BASIC_PASSWORD:-}
+      N8N_CHAT_AUTH_HEADER: ${N8N_CHAT_AUTH_HEADER:-}
+      N8N_CHAT_AUTH_VALUE: ${N8N_CHAT_AUTH_VALUE:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       CHAT_MODEL: ${CHAT_MODEL:-claude-haiku-4-5}
     networks:
       - shared-network

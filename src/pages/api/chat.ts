@@ -1,10 +1,25 @@
 import type { APIRoute } from "astro";
 import Anthropic from "@anthropic-ai/sdk";
 import { readEnv } from "../../lib/env";
+import { clientIp, consume } from "../../lib/rate-limit";
 
 export const prerender = false;
 
 const MODEL = readEnv("CHAT_MODEL") || "claude-haiku-4-5";
+
+/** Ventana de control del abuso. Cada respuesta cuesta tokens, así que se mide. */
+const WINDOW_MS = num("CHAT_RATE_WINDOW_MS", 10 * 60 * 1000);
+/** Por visitante: generoso para una conversación normal, corto para un script. */
+const LIMIT_IP = num("CHAT_RATE_LIMIT_IP", 20);
+/** Techo de toda la web: red de seguridad si el abuso viene repartido entre muchas IP. */
+const LIMIT_GLOBAL = num("CHAT_RATE_LIMIT_GLOBAL", 300);
+/** Tamaño máximo del cuerpo aceptado, para no tragar cargas absurdas. */
+const MAX_BODY_BYTES = num("CHAT_MAX_BODY_BYTES", 64 * 1024);
+
+function num(name: string, fallback: number): number {
+  const value = Number(readEnv(name));
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
 
 const SYSTEM_PROMPT = `Eres el asistente virtual de Escalat, una pequeña empresa de soluciones
 informáticas con inteligencia artificial para pymes y autónomos. Escalat automatiza la atención al
@@ -29,16 +44,29 @@ formato JSON al visitante.`;
 
 interface InMsg { role: string; content: string }
 
-export const POST: APIRoute = async ({ request }) => {
-  const apiKey = readEnv("ANTHROPIC_API_KEY");
-  if (!apiKey) {
-    console.error("[chat] Falta ANTHROPIC_API_KEY.");
-    return json({ error: "chat_unavailable" }, 503);
+export const POST: APIRoute = async ({ request, clientAddress }) => {
+  const ip = clientIp(request, clientAddress);
+  const veredicto = consume([
+    { key: `chat:${ip}`, rule: { limit: LIMIT_IP, windowMs: WINDOW_MS } },
+    { key: "chat:global", rule: { limit: LIMIT_GLOBAL, windowMs: WINDOW_MS } },
+  ]);
+  if (!veredicto.ok) {
+    return json({ error: "rate_limited" }, 429, {
+      "Retry-After": String(veredicto.retryAfter),
+    });
   }
 
-  let body: { messages?: InMsg[] };
+  // Cortamos por tamaño antes de leer el cuerpo entero en memoria.
+  const declared = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+    return json({ error: "too_large" }, 413);
+  }
+
+  let body: { messages?: InMsg[]; sessionId?: string };
   try {
-    body = await request.json();
+    const text = await request.text();
+    if (text.length > MAX_BODY_BYTES) return json({ error: "too_large" }, 413);
+    body = JSON.parse(text);
   } catch {
     return json({ error: "bad_request" }, 400);
   }
@@ -51,6 +79,122 @@ export const POST: APIRoute = async ({ request }) => {
 
   if (messages.length === 0 || messages[messages.length - 1].role !== "user") {
     return json({ error: "bad_request" }, 400);
+  }
+
+  // Si hay webhook de n8n configurado, el cerebro del chat es el workflow de n8n.
+  const n8nUrl = readEnv("N8N_CHAT_WEBHOOK_URL");
+  if (n8nUrl) {
+    return askN8n(n8nUrl, {
+      sessionId: sanitizeSessionId(body.sessionId),
+      chatInput: messages[messages.length - 1].content,
+    });
+  }
+
+  return askClaude(messages);
+};
+
+/**
+ * Llama al nodo "Chat Trigger" de n8n desde el servidor (así el visitante nunca ve
+ * la URL del webhook y no hacen falta permisos CORS en n8n).
+ */
+async function askN8n(
+  url: string,
+  payload: { sessionId: string; chatInput: string }
+): Promise<Response> {
+  const timeout = Number(readEnv("N8N_CHAT_TIMEOUT_MS")) || 30000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...n8nAuthHeaders() },
+      body: JSON.stringify({ action: "sendMessage", ...payload }),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      console.error(`[chat] n8n respondió ${res.status}: ${(await res.text()).slice(0, 300)}`);
+      return json({ error: "chat_error" }, 502);
+    }
+
+    const raw = extractN8nText(await res.text());
+    if (!raw) {
+      console.error("[chat] n8n respondió sin texto reconocible.");
+      return json({ error: "chat_error" }, 502);
+    }
+
+    const { reply, lead } = extractLead(raw);
+    return json({ reply, lead });
+  } catch (err) {
+    console.error("[chat] Error llamando a n8n:", err);
+    return json({ error: "chat_error" }, 502);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Autenticación del webhook, según cómo esté configurado el Chat Trigger en n8n. */
+function n8nAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+
+  // Basic Auth (la que usa ahora mismo el webhook de Escalat).
+  const user = readEnv("N8N_CHAT_BASIC_USER");
+  const pass = readEnv("N8N_CHAT_BASIC_PASSWORD");
+  if (user && pass) {
+    headers.Authorization = `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`;
+  }
+
+  // Header Auth (cabecera personalizada), por si se cambia en n8n.
+  const name = readEnv("N8N_CHAT_AUTH_HEADER");
+  const value = readEnv("N8N_CHAT_AUTH_VALUE");
+  if (name && value) headers[name] = value;
+
+  return headers;
+}
+
+/**
+ * n8n devuelve el JSON del último nodo del workflow. Según cómo esté montado puede
+ * llegar como {output}, {text}, {message}, {reply}, un array de esos objetos, o texto plano.
+ */
+function extractN8nText(bodyText: string): string {
+  const trimmed = bodyText.trim();
+  if (!trimmed) return "";
+
+  let data: unknown;
+  try {
+    data = JSON.parse(trimmed);
+  } catch {
+    return trimmed; // el workflow respondió texto plano
+  }
+
+  const first = Array.isArray(data) ? data[0] : data;
+  if (typeof first === "string") return first.trim();
+  if (!first || typeof first !== "object") return "";
+
+  const obj = first as Record<string, unknown>;
+  const nested = obj.json && typeof obj.json === "object" ? (obj.json as Record<string, unknown>) : obj;
+  for (const key of ["output", "text", "message", "reply", "answer", "response"]) {
+    const value = nested[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+/** El sessionId identifica la conversación para la memoria del workflow. */
+function sanitizeSessionId(value: unknown): string {
+  if (typeof value === "string") {
+    const clean = value.replace(/[^\w-]/g, "").slice(0, 64);
+    if (clean.length >= 8) return clean;
+  }
+  return crypto.randomUUID();
+}
+
+async function askClaude(messages: { role: "user" | "assistant"; content: string }[]): Promise<Response> {
+  const apiKey = readEnv("ANTHROPIC_API_KEY");
+  if (!apiKey) {
+    console.error("[chat] Falta N8N_CHAT_WEBHOOK_URL y ANTHROPIC_API_KEY.");
+    return json({ error: "chat_unavailable" }, 503);
   }
 
   try {
@@ -74,7 +218,7 @@ export const POST: APIRoute = async ({ request }) => {
     console.error("[chat] Error llamando a Claude:", err);
     return json({ error: "chat_error" }, 502);
   }
-};
+}
 
 /** Separa la línea LEAD::{...} del texto visible y la parsea si existe. */
 function extractLead(text: string): { reply: string; lead: Record<string, string> | null } {
@@ -88,9 +232,14 @@ function extractLead(text: string): { reply: string; lead: Record<string, string
   }
 }
 
-function json(bodyObj: unknown, status = 200): Response {
+function json(bodyObj: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(bodyObj), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      // Respuestas de chat: ni cachés intermedias ni buscadores.
+      "Cache-Control": "no-store",
+      ...extraHeaders,
+    },
   });
 }

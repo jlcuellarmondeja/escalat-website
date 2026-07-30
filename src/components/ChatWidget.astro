@@ -13,6 +13,7 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
   data-wa-interest={t.waInterest}
   data-wa-contact={t.waContact}
   data-error={t.error}
+  data-rate-limit={t.rateLimit}
 >
   <button class="chat__launcher" data-chat-launcher aria-label={t.name} aria-expanded="false">
     <span class="chat__launcher-icon"><Icon name="robot" size={24} /></span>
@@ -62,6 +63,22 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
   const input = document.querySelector<HTMLInputElement>("[data-chat-input]");
   const D = root?.dataset ?? {};
   const history: Msg[] = [];
+
+  /** Identifica la conversación para la memoria del workflow de n8n. */
+  const sessionId = (() => {
+    const key = "escalat:chat-session";
+    const fresh = () =>
+      crypto.randomUUID?.() ?? `s${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+    try {
+      const saved = sessionStorage.getItem(key);
+      if (saved) return saved;
+      const id = fresh();
+      sessionStorage.setItem(key, id);
+      return id;
+    } catch {
+      return fresh();
+    }
+  })();
 
   function open() {
     panel?.removeAttribute("hidden");
@@ -127,8 +144,15 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({ sessionId, messages: history }),
       });
+      if (res.status === 429) {
+        typing.classList.remove("msg--typing");
+        typing.innerHTML = D.rateLimit || D.error || "";
+        history.pop(); // no llegó a haber respuesta: no ensuciamos el historial
+        if (log) log.scrollTop = log.scrollHeight;
+        return;
+      }
       if (!res.ok) throw new Error("bad");
       const data = await res.json();
       const reply = (data && data.reply) || "…";

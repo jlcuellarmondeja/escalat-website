@@ -25,7 +25,9 @@ cp .env.example .env
 nano .env
 ```
 Rellena:
-- `ANTHROPIC_API_KEY` — clave de la API de Claude (para el chatbot).
+- `N8N_CHAT_WEBHOOK_URL` — webhook del *Chat Trigger* de n8n que atiende el chatbot.
+- `N8N_CHAT_BASIC_USER` / `N8N_CHAT_BASIC_PASSWORD` — credenciales Basic Auth de ese webhook.
+- `ANTHROPIC_API_KEY` — clave de la API de Claude. Solo si NO usas n8n.
 - `CHAT_MODEL` — opcional (por defecto `claude-haiku-4-5`).
 
 ## Paso 3 — GitHub Secrets

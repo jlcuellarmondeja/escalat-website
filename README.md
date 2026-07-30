@@ -18,11 +18,42 @@ Copia `.env.example` a `.env` y rellena:
 
 | Variable | Para qué | Obligatoria |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | Clave de la API de Claude, usada **solo en el servidor** por el chatbot | Sí (para el chat) |
-| `CHAT_MODEL` | Modelo del chatbot. Por defecto `claude-haiku-4-5` | No |
+| `N8N_CHAT_WEBHOOK_URL` | Webhook del nodo *Chat Trigger* de n8n. Si está puesta, el chatbot lo lleva ese workflow | Sí (si usas n8n) |
+| `N8N_CHAT_BASIC_USER` / `N8N_CHAT_BASIC_PASSWORD` | Credenciales del webhook cuando el Chat Trigger usa *Basic Auth* (recomendado) | Sí, si lo proteges |
+| `N8N_CHAT_AUTH_HEADER` / `N8N_CHAT_AUTH_VALUE` | Solo si el chat pasa a un nodo *Webhook* normal, que sí tiene *Header Auth* | No |
+| `N8N_CHAT_TIMEOUT_MS` | Espera máxima al workflow. Por defecto `30000` | No |
+| `ANTHROPIC_API_KEY` | Clave de la API de Claude, usada **solo en el servidor**. Alternativa a n8n | Sí (si NO usas n8n) |
+| `CHAT_MODEL` | Modelo del chatbot cuando se usa Claude. Por defecto `claude-haiku-4-5` | No |
+| `CHAT_RATE_LIMIT_IP` | Mensajes por visitante y ventana. Por defecto `20` | No |
+| `CHAT_RATE_LIMIT_GLOBAL` | Mensajes de toda la web por ventana. Por defecto `300` | No |
+| `CHAT_RATE_WINDOW_MS` | Ventana del límite. Por defecto `600000` (10 min) | No |
 
-> La clave de API nunca se expone en el navegador: vive solo en la función `/api/chat`.
-> Sin `ANTHROPIC_API_KEY`, el chat responde con un mensaje de respaldo sin romperse.
+### Protección del chat
+
+Cada respuesta del chat cuesta tokens de IA, así que `/api/chat` no es de acceso libre:
+
+- **Límite por IP y límite global** ([lib/rate-limit.ts](src/lib/rate-limit.ts)), en memoria del proceso.
+  Al superarlo devuelve `429` con `Retry-After` y el widget muestra un aviso amable.
+  La IP real se lee de `CF-Connecting-IP` (Cloudflare) con respaldo en `X-Forwarded-For`.
+- **Tamaño máximo de petición** y recorte del historial a 20 mensajes de 2000 caracteres.
+- **Cabeceras de seguridad** en el Caddyfile de `escalat-infra`, y **CSP con hashes**
+  generada por Astro (`security.csp` en `astro.config.mjs`) — sin `unsafe-inline`.
+- El contenedor corre como usuario **`node`**, no como root.
+
+> Si algún día la web pasa a tener varias réplicas, el límite tendría que moverse a Redis:
+> tal cual está, cada proceso lleva su propia cuenta.
+
+### Cómo elige el chat su cerebro
+
+`/api/chat` mira `N8N_CHAT_WEBHOOK_URL`:
+
+- **Definida** → reenvía el mensaje al workflow de n8n (`{"action":"sendMessage","sessionId","chatInput"}`)
+  y devuelve al navegador el texto del último nodo (`output`, `text`, `message`…).
+- **Vacía** → llama a Claude directamente con el prompt de sistema de `src/pages/api/chat.ts`.
+
+> Ni la URL del webhook ni sus credenciales llegan al navegador: la llamada se hace desde el
+> servidor, así que tampoco hace falta abrir CORS en n8n.
+> Sin ninguna de las dos configuraciones, el chat responde con un mensaje de respaldo sin romperse.
 >
 > El **número de WhatsApp** para el contacto se configura en `src/config.ts` (`WHATSAPP_NUMBER`),
 > no como variable de entorno (se usa en el navegador para los enlaces click-to-chat).

@@ -30,6 +30,11 @@ RUN npm ci --omit=dev && npm cache clean --force
 # App compilada
 COPY --from=build /app/dist ./dist
 
+# Sin privilegios: si algún día se explota un fallo en la app, no se hereda root.
+# El usuario "node" ya viene creado en la imagen oficial.
+RUN chown -R node:node /app
+USER node
+
 EXPOSE 4321
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

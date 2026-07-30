@@ -55,7 +55,7 @@ PHASE="validate"
 command -v docker >/dev/null 2>&1 || { echo "ERROR: Docker no instalado"; exit 1; }
 
 if [ ! -f ".env" ]; then
-  echo "ERROR: No se encontró .env (crea uno con ANTHROPIC_API_KEY)"
+  echo "ERROR: No se encontró .env (crea uno con N8N_CHAT_WEBHOOK_URL y sus credenciales)"
   exit 1
 fi
 
