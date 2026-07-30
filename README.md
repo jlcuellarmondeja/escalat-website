@@ -28,6 +28,33 @@ Copia `.env.example` a `.env` y rellena:
 | `CHAT_RATE_LIMIT_GLOBAL` | Mensajes de toda la web por ventana. Por defecto `300` | No |
 | `CHAT_RATE_WINDOW_MS` | Ventana del límite. Por defecto `600000` (10 min) | No |
 
+### Señales del asistente a la web
+
+El agente puede pedirle cosas a la interfaz terminando su mensaje con una línea especial.
+`/api/chat` la separa antes de responder, así que **el visitante nunca la ve**:
+
+| Línea | Efecto en el chat |
+| --- | --- |
+| `FORM::contacto` | Pinta un formulario (nombre, email, teléfono) dentro del hilo |
+| `LEAD::{"nombre":…,"necesidad":…,"contacto":…}` | Muestra el botón de WhatsApp ya relleno |
+
+Los campos del formulario y sus validaciones viven en [ChatWidget.astro](src/components/ChatWidget.astro),
+no en n8n: el agente solo decide **cuándo** pedirlos. Los nombres de formulario válidos
+son una lista cerrada en `chat.ts`, de modo que el modelo no puede inventarse uno.
+
+Al enviarlo, los datos vuelven al asistente como un mensaje normal y la conversación sigue.
+
+Para activarlo, añade esto al prompt del agente en n8n:
+
+```text
+Cuando toque pedir los datos de contacto (nombre, email y teléfono), NO los pidas
+uno a uno. Escribe una frase breve anunciándolo y termina el mensaje con esta línea
+exacta, sola en su propia línea:
+FORM::contacto
+La web mostrará un formulario. No menciones nunca esa línea ni la palabra
+"formulario". Úsala una sola vez por conversación.
+```
+
 ### Protección del chat
 
 Cada respuesta del chat cuesta tokens de IA, así que `/api/chat` no es de acceso libre:

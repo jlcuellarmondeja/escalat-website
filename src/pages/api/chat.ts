@@ -124,8 +124,8 @@ async function askN8n(
       return json({ error: "chat_error" }, 502);
     }
 
-    const { reply, lead } = extractLead(raw);
-    return json({ reply, lead });
+    const { reply, lead, form } = extractLead(raw);
+    return json({ reply, lead, form });
   } catch (err) {
     console.error("[chat] Error llamando a n8n:", err);
     return json({ error: "chat_error" }, 502);
@@ -212,23 +212,49 @@ async function askClaude(messages: { role: "user" | "assistant"; content: string
       .join("\n")
       .trim();
 
-    const { reply, lead } = extractLead(raw);
-    return json({ reply, lead });
+    const { reply, lead, form } = extractLead(raw);
+    return json({ reply, lead, form });
   } catch (err) {
     console.error("[chat] Error llamando a Claude:", err);
     return json({ error: "chat_error" }, 502);
   }
 }
 
-/** Separa la línea LEAD::{...} del texto visible y la parsea si existe. */
-function extractLead(text: string): { reply: string; lead: Record<string, string> | null } {
-  const match = text.match(/LEAD::\s*(\{.*\})\s*$/s);
-  if (!match) return { reply: text, lead: null };
-  const reply = text.slice(0, match.index).trim();
+/** Formularios que la web sabe pintar. El agente solo puede pedir uno de estos. */
+const FORMULARIOS = new Set(["contacto"]);
+
+/**
+ * Separa del texto visible las señales que el agente manda a la web:
+ *
+ *   LEAD::{"nombre":...}  → ya tenemos los datos, muestra el botón de WhatsApp
+ *   FORM::contacto        → pide los datos con un formulario en vez de a preguntas
+ *
+ * El visitante nunca ve estas líneas. El nombre del formulario se valida contra una
+ * lista cerrada: los campos y sus validaciones los define la web, no el modelo.
+ */
+function extractLead(text: string): {
+  reply: string;
+  lead: Record<string, string> | null;
+  form: string | null;
+} {
+  let reply = text;
+  let form: string | null = null;
+
+  const formMatch = reply.match(/^[ \t]*FORM::\s*([\w-]+)[ \t]*$/m);
+  if (formMatch) {
+    const nombre = formMatch[1]!.toLowerCase();
+    if (FORMULARIOS.has(nombre)) form = nombre;
+    reply = (reply.slice(0, formMatch.index) + reply.slice(formMatch.index! + formMatch[0].length)).trim();
+  }
+
+  const leadMatch = reply.match(/LEAD::\s*(\{.*\})\s*$/s);
+  if (!leadMatch) return { reply: reply.trim(), lead: null, form };
+
+  const visible = reply.slice(0, leadMatch.index).trim();
   try {
-    return { reply, lead: JSON.parse(match[1]) };
+    return { reply: visible, lead: JSON.parse(leadMatch[1]!), form };
   } catch {
-    return { reply, lead: null };
+    return { reply: visible, lead: null, form };
   }
 }
 

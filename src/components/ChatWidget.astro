@@ -14,6 +14,8 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
   data-wa-contact={t.waContact}
   data-error={t.error}
   data-rate-limit={t.rateLimit}
+  data-privacy={privacyHref}
+  data-form-t={JSON.stringify(t.form)}
 >
   <button class="chat__launcher" data-chat-launcher aria-label={t.name} aria-expanded="false">
     <span class="chat__launcher-icon"><Icon name="robot" size={24} /></span>
@@ -147,12 +149,15 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
     if (log) log.scrollTop = log.scrollHeight;
   }
 
-  form?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const text = input?.value.trim();
-    if (!text) return;
-    if (input) input.value = "";
-    addMsg("user", text);
+  /**
+   * Manda un mensaje al asistente y pinta la respuesta.
+   *
+   * `display` permite enseñar en pantalla algo distinto de lo que se envía, o nada
+   * en absoluto (`null`): cuando los datos salen del formulario, el propio formulario
+   * relleno ya hace de registro visual y una burbuja repetiría lo mismo.
+   */
+  async function send(text: string, display: string | null = text): Promise<void> {
+    if (display !== null) addMsg("user", display);
     history.push({ role: "user", content: text });
 
     const typing = addMsg("bot", "…");
@@ -177,13 +182,108 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
       typing.classList.remove("msg--typing");
       typing.innerHTML = render(reply);
       history.push({ role: "assistant", content: reply });
+      if (data && data.form === "contacto") addLeadForm();
       if (data && data.lead) addWhatsAppCta(data.lead);
     } catch {
       typing.classList.remove("msg--typing");
       typing.innerHTML = D.error || "Error";
     }
     if (log) log.scrollTop = log.scrollHeight;
+  }
+
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = input?.value.trim();
+    if (!text) return;
+    if (input) input.value = "";
+    void send(text);
   });
+
+  // ── Formulario de datos dentro del chat ──────────────────────────────────────
+
+  type FormT = Record<string, string>;
+  const FT: FormT = (() => {
+    try {
+      return JSON.parse(D.formT || "{}");
+    } catch {
+      return {};
+    }
+  })();
+
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+  /**
+   * Pinta el formulario de datos como una burbuja más del hilo.
+   *
+   * Los campos y sus validaciones están aquí, no en n8n: el agente solo decide
+   * CUÁNDO pedirlos. Así el visitante ve siempre lo mismo y el email se valida de
+   * verdad, en vez de depender de que el modelo lo interprete bien.
+   */
+  function addLeadForm(): void {
+    if (!log || log.querySelector("[data-lead-form]")) return; // solo una vez
+
+    const el = document.createElement("form");
+    el.className = "lead";
+    el.setAttribute("data-lead-form", "");
+    el.noValidate = true;
+    el.innerHTML = `
+      <p class="lead__title">${FT.title || ""}</p>
+      <p class="lead__intro">${FT.intro || ""}</p>
+      <label class="lead__label" for="lead-name">${FT.name || ""}</label>
+      <input class="lead__input" id="lead-name" name="nombre" type="text"
+             placeholder="${FT.namePh || ""}" autocomplete="name" required />
+      <label class="lead__label" for="lead-email">${FT.email || ""}</label>
+      <input class="lead__input" id="lead-email" name="email" type="email"
+             placeholder="${FT.emailPh || ""}" autocomplete="email" required />
+      <label class="lead__label" for="lead-phone">${FT.phone || ""}
+        <span class="lead__opt">${FT.optional || ""}</span></label>
+      <input class="lead__input" id="lead-phone" name="telefono" type="tel"
+             placeholder="${FT.phonePh || ""}" autocomplete="tel" />
+      <label class="lead__consent">
+        <input type="checkbox" name="consent" />
+        <span>${FT.consentPre || ""}<a href="${D.privacy || "#"}" target="_blank" rel="noopener">${FT.consentLink || ""}</a>.</span>
+      </label>
+      <p class="lead__error" role="alert" aria-live="polite"></p>
+      <button class="lead__submit" type="submit">${FT.submit || ""}</button>
+    `;
+
+    const error = el.querySelector<HTMLParagraphElement>(".lead__error")!;
+    const button = el.querySelector<HTMLButtonElement>(".lead__submit")!;
+
+    el.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const data = new FormData(el);
+      const nombre = String(data.get("nombre") || "").trim();
+      const email = String(data.get("email") || "").trim();
+      const telefono = String(data.get("telefono") || "").trim();
+
+      if (!nombre) return fail(FT.errName);
+      if (!EMAIL_RE.test(email)) return fail(FT.errEmail);
+      if (!data.get("consent")) return fail(FT.errConsent);
+
+      error.textContent = "";
+      button.disabled = true;
+      button.textContent = FT.sending || "…";
+
+      // El formulario se queda visible pero bloqueado: el visitante ve lo que envió.
+      el.querySelectorAll("input").forEach((i) => (i.disabled = true));
+      el.classList.add("is-sent");
+
+      const partes = [`${FT.name}: ${nombre}`, `${FT.email}: ${email}`];
+      if (telefono) partes.push(`${FT.phone}: ${telefono}`);
+      const texto = `${FT.summary} ${partes.join(". ")}.`;
+
+      void send(texto, null);
+    });
+
+    function fail(msg?: string): void {
+      error.textContent = msg || "";
+    }
+
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+    el.querySelector<HTMLInputElement>("#lead-name")?.focus();
+  }
 </script>
 
 <style>
@@ -284,6 +384,70 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
     border-bottom-right-radius: 4px;
   }
   .chat__log :global(.msg--typing) { color: var(--color-muted); letter-spacing: 2px; }
+
+  /* Formulario de datos: una burbuja más del hilo, no un bloque aparte. */
+  .chat__log :global(.lead) {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    border-bottom-left-radius: 4px;
+    font-family: var(--font-sans);
+  }
+  .chat__log :global(.lead.is-sent) { opacity: 0.65; }
+  .chat__log :global(.lead__title) { font-size: 14px; font-weight: 500; }
+  .chat__log :global(.lead__intro) {
+    font-size: 12px; color: var(--color-text-2); margin-bottom: 6px;
+  }
+  .chat__log :global(.lead__label) {
+    font-size: 12px; color: var(--color-text-2); margin-top: 6px;
+  }
+  .chat__log :global(.lead__opt) { color: var(--color-muted); }
+  .chat__log :global(.lead__input) {
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--color-text);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-2);
+    border-radius: 9px;
+    padding: 9px 11px;
+  }
+  .chat__log :global(.lead__input:focus) { outline: none; border-color: var(--color-gold); }
+  .chat__log :global(.lead__input::placeholder) { color: var(--color-muted); }
+  .chat__log :global(.lead__input:disabled) { opacity: 0.7; }
+  .chat__log :global(.lead__consent) {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--color-text-2);
+  }
+  .chat__log :global(.lead__consent input) { margin-top: 2px; flex: none; accent-color: var(--color-gold); }
+  .chat__log :global(.lead__consent a) { color: var(--color-gold); }
+  .chat__log :global(.lead__error) {
+    font-size: 12px; color: #e2725b; min-height: 1em; margin-top: 6px;
+  }
+  .chat__log :global(.lead__submit) {
+    margin-top: 8px;
+    padding: 10px 14px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-bg);
+    background: var(--color-gold);
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  .chat__log :global(.lead__submit:hover) { background: var(--color-gold-soft); }
+  .chat__log :global(.lead__submit:disabled) { background: var(--color-muted); cursor: default; }
 
   .chat__log :global(.chat__wa) {
     align-self: flex-start;
