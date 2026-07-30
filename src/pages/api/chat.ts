@@ -240,11 +240,15 @@ function extractLead(text: string): {
   let reply = text;
   let form: string | null = null;
 
-  const formMatch = reply.match(/^[ \t]*FORM::\s*([\w-]+)[ \t]*$/m);
+  // Deliberadamente tolerante: el modelo no siempre deja el marcador solo en su línea.
+  // Lo acepta suelto, entre corchetes, entre comillas invertidas y en cualquier caja.
+  const formMatch = reply.match(/[`[(]?\s*FORM\s*::\s*([\w-]+)\s*[`\])]?/i);
   if (formMatch) {
     const nombre = formMatch[1]!.toLowerCase();
     if (FORMULARIOS.has(nombre)) form = nombre;
-    reply = (reply.slice(0, formMatch.index) + reply.slice(formMatch.index! + formMatch[0].length)).trim();
+    reply = (reply.slice(0, formMatch.index) + reply.slice(formMatch.index! + formMatch[0].length))
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
   }
 
   const leadMatch = reply.match(/LEAD::\s*(\{.*\})\s*$/s);
