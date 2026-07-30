@@ -221,7 +221,7 @@ async function askClaude(messages: { role: "user" | "assistant"; content: string
 }
 
 /** Formularios que la web sabe pintar. El agente solo puede pedir uno de estos. */
-const FORMULARIOS = new Set(["contacto"]);
+const FORMULARIOS = new Set(["contacto", "cita"]);
 
 /**
  * Separa del texto visible las señales que el agente manda a la web:

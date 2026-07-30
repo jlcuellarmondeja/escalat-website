@@ -16,6 +16,8 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
   data-rate-limit={t.rateLimit}
   data-privacy={privacyHref}
   data-form-t={JSON.stringify(t.form)}
+  data-cita-t={JSON.stringify(t.cita)}
+  data-lang={getLang(locale)}
 >
   <button class="chat__launcher" data-chat-launcher aria-label={t.name} aria-expanded="false">
     <span class="chat__launcher-icon"><Icon name="robot" size={24} /></span>
@@ -183,6 +185,7 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
       typing.innerHTML = render(reply);
       history.push({ role: "assistant", content: reply });
       if (data && data.form === "contacto") addLeadForm();
+      if (data && data.form === "cita") void addAgenda();
       if (data && data.lead) addWhatsAppCta(data.lead);
     } catch {
       typing.classList.remove("msg--typing");
@@ -201,14 +204,20 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
 
   // ── Formulario de datos dentro del chat ──────────────────────────────────────
 
-  type FormT = Record<string, string>;
-  const FT: FormT = (() => {
+  type Textos = Record<string, string>;
+  const leer = (raw?: string): Textos => {
     try {
-      return JSON.parse(D.formT || "{}");
+      return JSON.parse(raw || "{}");
     } catch {
       return {};
     }
-  })();
+  };
+  const FT = leer(D.formT);
+  const CT = leer(D.citaT);
+  const LANG = D.lang === "en" ? "en-GB" : "es-ES";
+
+  /** Datos ya facilitados por el visitante, para no volver a pedirlos al reservar. */
+  let datos: { nombre: string; email: string; telefono: string } | null = null;
 
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -269,6 +278,8 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
       el.querySelectorAll("input").forEach((i) => (i.disabled = true));
       el.classList.add("is-sent");
 
+      datos = { nombre, email, telefono }; // por si luego se reserva una cita
+
       const partes = [`${FT.name}: ${nombre}`, `${FT.email}: ${email}`];
       if (telefono) partes.push(`${FT.phone}: ${telefono}`);
       const texto = `${FT.summary} ${partes.join(". ")}.`;
@@ -283,6 +294,160 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
     log.appendChild(el);
     log.scrollTop = log.scrollHeight;
     el.querySelector<HTMLInputElement>("#lead-name")?.focus();
+  }
+
+  // ── Selector de cita ─────────────────────────────────────────────────────────
+
+  type Hueco = { start: string; end: string };
+
+  const dia = (iso: string, zona: string) =>
+    new Intl.DateTimeFormat(LANG, { timeZone: zona, weekday: "long", day: "numeric", month: "long" })
+      .format(new Date(iso));
+  const hora = (iso: string, zona: string) =>
+    new Intl.DateTimeFormat(LANG, { timeZone: zona, hour: "2-digit", minute: "2-digit", hour12: false })
+      .format(new Date(iso));
+
+  /**
+   * Pinta el selector de día y hora.
+   *
+   * Los huecos vienen de /api/slots, que los calcula contra el calendario real. El
+   * modelo no interviene: si inventara una hora, alguien se plantaría aquí un día
+   * que no le esperamos.
+   */
+  async function addAgenda(): Promise<void> {
+    if (!log || log.querySelector("[data-agenda]")) return; // solo una vez
+
+    const el = document.createElement("div");
+    el.className = "lead";
+    el.setAttribute("data-agenda", "");
+    el.innerHTML = `<p class="lead__title">${CT.title || ""}</p><p class="lead__intro">${CT.loading || ""}</p>`;
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+
+    let huecos: Hueco[] = [];
+    let zona = "Europe/Madrid";
+    try {
+      const res = await fetch("/api/slots", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      if (!res.ok) throw new Error("bad");
+      const data = await res.json();
+      huecos = Array.isArray(data.slots) ? data.slots : [];
+      zona = data.zona || zona;
+    } catch {
+      el.innerHTML = `<p class="lead__title">${CT.title || ""}</p><p class="lead__intro">${CT.error || ""}</p>`;
+      return;
+    }
+
+    if (!huecos.length) {
+      el.innerHTML = `<p class="lead__title">${CT.title || ""}</p><p class="lead__intro">${CT.empty || ""}</p>`;
+      return;
+    }
+
+    // Agrupados por día, en el orden en que llegan (ya vienen ordenados).
+    const porDia = new Map<string, Hueco[]>();
+    for (const h of huecos) {
+      const clave = dia(h.start, zona);
+      if (!porDia.has(clave)) porDia.set(clave, []);
+      porDia.get(clave)!.push(h);
+    }
+
+    let diaActivo = [...porDia.keys()][0]!;
+    let elegido: Hueco | null = null;
+
+    const pintar = () => {
+      const dias = [...porDia.keys()]
+        .map((d) => `<button type="button" class="cita__dia${d === diaActivo ? " is-on" : ""}" data-dia="${d}">${d}</button>`)
+        .join("");
+      const horas = (porDia.get(diaActivo) || [])
+        .map((h) => `<button type="button" class="cita__hora${elegido?.start === h.start ? " is-on" : ""}" data-hora="${h.start}">${hora(h.start, zona)}</button>`)
+        .join("");
+
+      el.innerHTML = `
+        <p class="lead__title">${CT.title || ""}</p>
+        <div class="cita__dias">${dias}</div>
+        <p class="lead__label">${CT.pickTime || ""}</p>
+        <div class="cita__horas">${horas}</div>
+        ${elegido ? formulario() : ""}
+        <p class="lead__error" role="alert" aria-live="polite"></p>
+      `;
+      enlazar();
+    };
+
+    const formulario = () => `
+      <input class="lead__input" data-c-nombre type="text" placeholder="${FT.namePh || ""}"
+             autocomplete="name" value="${(datos?.nombre || "").replace(/"/g, "&quot;")}" />
+      <input class="lead__input" data-c-email type="email" placeholder="${FT.emailPh || ""}"
+             autocomplete="email" value="${(datos?.email || "").replace(/"/g, "&quot;")}" />
+      <input class="lead__input" data-c-tel type="tel" placeholder="${FT.phonePh || ""}"
+             autocomplete="tel" value="${(datos?.telefono || "").replace(/"/g, "&quot;")}" />
+      <label class="lead__consent">
+        <input type="checkbox" data-c-consent ${datos ? "checked" : ""} />
+        <span>${FT.consentPre || ""}<a href="${D.privacy || "#"}" target="_blank" rel="noopener">${FT.consentLink || ""}</a>.</span>
+      </label>
+      <button class="lead__submit" data-c-confirm type="button">${CT.confirm || ""}</button>
+    `;
+
+    function enlazar(): void {
+      el.querySelectorAll<HTMLButtonElement>("[data-dia]").forEach((b) =>
+        b.addEventListener("click", () => { diaActivo = b.dataset.dia!; elegido = null; pintar(); })
+      );
+      el.querySelectorAll<HTMLButtonElement>("[data-hora]").forEach((b) =>
+        b.addEventListener("click", () => {
+          elegido = huecos.find((h) => h.start === b.dataset.hora) || null;
+          pintar();
+        })
+      );
+      el.querySelector<HTMLButtonElement>("[data-c-confirm]")?.addEventListener("click", confirmar);
+      log!.scrollTop = log!.scrollHeight;
+    }
+
+    async function confirmar(): Promise<void> {
+      const error = el.querySelector<HTMLElement>(".lead__error")!;
+      const boton = el.querySelector<HTMLButtonElement>("[data-c-confirm]")!;
+      const nombre = el.querySelector<HTMLInputElement>("[data-c-nombre]")!.value.trim();
+      const email = el.querySelector<HTMLInputElement>("[data-c-email]")!.value.trim();
+      const telefono = el.querySelector<HTMLInputElement>("[data-c-tel]")!.value.trim();
+
+      if (!nombre) return void (error.textContent = FT.errName || "");
+      if (!EMAIL_RE.test(email)) return void (error.textContent = FT.errEmail || "");
+      if (!el.querySelector<HTMLInputElement>("[data-c-consent]")!.checked) {
+        return void (error.textContent = FT.errConsent || "");
+      }
+
+      error.textContent = "";
+      boton.disabled = true;
+      boton.textContent = CT.booking || "…";
+
+      try {
+        const res = await fetch("/api/book", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ start: elegido!.start, nombre, email, telefono }),
+        });
+
+        if (res.status === 409) {
+          // Alguien se adelantó mientras elegía: se recarga en vez de mentirle.
+          el.removeAttribute("data-agenda");
+          el.remove();
+          addMsg("bot", CT.taken || "");
+          datos = { nombre, email, telefono };
+          void addAgenda();
+          return;
+        }
+        if (!res.ok) throw new Error("bad");
+
+        datos = { nombre, email, telefono };
+        const cuando = `${dia(elegido!.start, zona)}, ${hora(elegido!.start, zona)}`;
+        el.remove();
+        addMsg("bot", `✅ ${cuando}`);
+        void send(`${CT.doneMsg} ${cuando}.`, null);
+      } catch {
+        boton.disabled = false;
+        boton.textContent = CT.confirm || "";
+        error.textContent = CT.failed || "";
+      }
+    }
+
+    pintar();
   }
 </script>
 
@@ -448,6 +613,51 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
   }
   .chat__log :global(.lead__submit:hover) { background: var(--color-gold-soft); }
   .chat__log :global(.lead__submit:disabled) { background: var(--color-muted); cursor: default; }
+
+  /* Selector de cita: días en fila que se desplaza, horas en rejilla. */
+  .chat__log :global(.cita__dias) {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-top: 4px;
+  }
+  .chat__log :global(.cita__dia) {
+    flex: none;
+    padding: 7px 11px;
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--color-text-2);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-2);
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    text-transform: capitalize;
+  }
+  .chat__log :global(.cita__dia.is-on) {
+    color: var(--color-bg); background: var(--color-gold); border-color: var(--color-gold);
+  }
+  .chat__log :global(.cita__horas) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(66px, 1fr));
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .chat__log :global(.cita__hora) {
+    padding: 9px 4px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--color-text);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-2);
+    border-radius: 9px;
+    cursor: pointer;
+  }
+  .chat__log :global(.cita__hora:hover) { border-color: var(--color-gold); }
+  .chat__log :global(.cita__hora.is-on) {
+    color: var(--color-bg); background: var(--color-gold); border-color: var(--color-gold); font-weight: 500;
+  }
 
   .chat__log :global(.chat__wa) {
     align-self: flex-start;

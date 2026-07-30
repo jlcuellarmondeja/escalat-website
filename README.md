@@ -36,6 +36,7 @@ El agente puede pedirle cosas a la interfaz terminando su mensaje con una línea
 | Línea | Efecto en el chat |
 | --- | --- |
 | `FORM::contacto` | Pinta un formulario (nombre, email, teléfono) dentro del hilo |
+| `FORM::cita` | Pinta el selector de día y hora para reservar una entrevista |
 | `LEAD::{"nombre":…,"necesidad":…,"contacto":…}` | Muestra el botón de WhatsApp ya relleno |
 
 Los campos del formulario y sus validaciones viven en [ChatWidget.astro](src/components/ChatWidget.astro),
@@ -54,6 +55,47 @@ FORM::contacto
 La web mostrará un formulario. No menciones nunca esa línea ni la palabra
 "formulario". Úsala una sola vez por conversación.
 ```
+
+### Agenda de entrevistas
+
+**El modelo no decide horas.** Si se le pregunta qué huecos hay, se los inventa con
+total naturalidad, y una hora inventada es una persona plantada en la puerta. Por eso
+la disponibilidad va por un camino aparte, sin IA de por medio:
+
+```
+navegador → /api/slots → n8n (BUSY) → Google Calendar
+                ↓
+        lib/agenda.ts calcula los huecos libres
+```
+
+Las reglas del negocio —horario, duración, margen entre citas, antelación mínima,
+horizonte— están en [lib/agenda.ts](src/lib/agenda.ts), no en n8n: hacer cuentas de
+fechas en nodos es un suplicio y allí no se pueden probar. **n8n solo responde qué
+está ocupado.**
+
+Al confirmar, `/api/book` **vuelve a consultar el calendario** antes de crear el
+evento: entre que se pintan los huecos y el visitante decide pueden pasar minutos, y
+otra persona puede haberse adelantado. Si pasa, devuelve `409` y el selector se
+recarga conservando los datos ya escritos.
+
+> Queda una ventana de carrera de milisegundos entre revalidar y crear, porque Google
+> Calendar no ofrece reserva atómica. Para el volumen de una pyme es asumible; si
+> algún día hay solapes reales, tocaría un motor de reservas tipo Cal.com.
+
+Hacen falta **dos workflows nuevos en n8n**, cada uno con su webhook:
+
+| | Recibe | Debe responder |
+| --- | --- | --- |
+| **BUSY** | `{action:"busy", start, end}` (ISO UTC) | `{"busy":[{"start":"…","end":"…"}]}` |
+| **BOOK** | `{action:"book", start, nombre, email, telefono, nota}` | `{"ok":true}` (o `{"ok":false}` si no pudo) |
+
+BUSY es un único nodo *Google Calendar → Get Many Events* con el rango recibido.
+También se acepta el formato crudo de Google (`{items:[{start:{dateTime}}]}`), por si
+sale directo del nodo. BOOK es un *Google Calendar → Create Event* de
+`AGENDA.duracionMin` minutos.
+
+Sus URL van en `N8N_BUSY_WEBHOOK_URL` y `N8N_BOOK_WEBHOOK_URL`. Si faltan, el selector
+avisa y el resto del chat sigue funcionando.
 
 ### Protección del chat
 
