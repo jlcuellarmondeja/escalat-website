@@ -25,10 +25,25 @@ export function n8nAuthHeaders(): Record<string, string> {
 }
 
 /**
+ * Quita la capa `{json: …}` con la que n8n envuelve cada item, **conservando la
+ * forma**: si vienen diez items, salen diez.
+ *
+ * Importa más de lo que parece. El nodo "Get Many Events" de Google Calendar emite
+ * un item por cita, así que quedarse solo con el primero equivale a no ver el resto
+ * de citas del día, y a ofrecer horas que ya están dadas.
+ */
+function desenvolver(data: unknown): unknown {
+  if (Array.isArray(data)) return data.map(desenvolver);
+  if (data && typeof data === "object" && "json" in data) {
+    return (data as { json: unknown }).json;
+  }
+  return data;
+}
+
+/**
  * POST a un webhook de n8n, con tiempo máximo de espera.
  *
- * Devuelve el JSON ya desenvuelto: n8n suele responder con el array de items del
- * último nodo, y casi siempre lo que interesa es el primero.
+ * Devuelve el JSON tal cual lo mandó el workflow, sin la envoltura de n8n.
  */
 export async function postN8n(url: string, payload: unknown): Promise<unknown> {
   const timeout = Number(readEnv("N8N_CHAT_TIMEOUT_MS")) || 30000;
@@ -50,13 +65,7 @@ export async function postN8n(url: string, payload: unknown): Promise<unknown> {
     const texto = (await res.text()).trim();
     if (!texto) return null;
 
-    const data = JSON.parse(texto);
-    const primero = Array.isArray(data) ? data[0] : data;
-    // n8n envuelve cada item en {json: {...}} según por dónde salga del workflow.
-    if (primero && typeof primero === "object" && "json" in primero) {
-      return (primero as { json: unknown }).json;
-    }
-    return primero;
+    return desenvolver(JSON.parse(texto));
   } finally {
     clearTimeout(timer);
   }

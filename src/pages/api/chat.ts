@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import Anthropic from "@anthropic-ai/sdk";
 import { readEnv } from "../../lib/env";
 import { clientIp, consume } from "../../lib/rate-limit";
+import { n8nAuthHeaders } from "../../lib/n8n";
 
 export const prerender = false;
 
@@ -132,25 +133,6 @@ async function askN8n(
   } finally {
     clearTimeout(timer);
   }
-}
-
-/** Autenticación del webhook, según cómo esté configurado el Chat Trigger en n8n. */
-function n8nAuthHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {};
-
-  // Basic Auth (la que usa ahora mismo el webhook de Escalat).
-  const user = readEnv("N8N_CHAT_BASIC_USER");
-  const pass = readEnv("N8N_CHAT_BASIC_PASSWORD");
-  if (user && pass) {
-    headers.Authorization = `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`;
-  }
-
-  // Header Auth (cabecera personalizada), por si se cambia en n8n.
-  const name = readEnv("N8N_CHAT_AUTH_HEADER");
-  const value = readEnv("N8N_CHAT_AUTH_VALUE");
-  if (name && value) headers[name] = value;
-
-  return headers;
 }
 
 /**

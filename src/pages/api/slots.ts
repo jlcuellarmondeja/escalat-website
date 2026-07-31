@@ -49,11 +49,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
  * (`{items:[{start:{dateTime}}]}`), para no atarse a cómo salga montado el workflow.
  */
 export async function pedirOcupado(url: string, ventana: Intervalo): Promise<Intervalo[]> {
-  const data = (await postN8n(url, { action: "busy", ...ventana })) as Record<string, unknown> | null;
-  if (!data) return [];
-
-  const lista = (Array.isArray(data) ? data : data.busy ?? data.items ?? data.events) as unknown;
-  if (!Array.isArray(lista)) return [];
+  const lista = listaDeEventos(await postN8n(url, { action: "busy", ...ventana }));
 
   const ocupado: Intervalo[] = [];
   for (const item of lista) {
@@ -70,6 +66,33 @@ export async function pedirOcupado(url: string, ventana: Intervalo): Promise<Int
     }
   }
   return ocupado;
+}
+
+/**
+ * Encuentra la lista de eventos venga como venga.
+ *
+ * Según se monte el workflow, n8n puede devolver el array de citas directamente, o
+ * un único objeto con la lista dentro (`{busy:[…]}`), o ese objeto envuelto en un
+ * array de un elemento. Se acepta todo para no obligar a montarlo de una forma exacta.
+ */
+function listaDeEventos(data: unknown): unknown[] {
+  if (!data) return [];
+
+  if (Array.isArray(data)) {
+    // ¿Es un array que solo envuelve un objeto contenedor, en vez de las citas?
+    if (data.length === 1 && data[0] && typeof data[0] === "object" && !("start" in (data[0] as object))) {
+      const dentro = listaDeEventos(data[0]);
+      if (dentro.length) return dentro;
+    }
+    return data;
+  }
+
+  if (typeof data !== "object") return [];
+  const obj = data as Record<string, unknown>;
+  for (const clave of ["busy", "items", "events", "data"]) {
+    if (Array.isArray(obj[clave])) return obj[clave] as unknown[];
+  }
+  return [];
 }
 
 export function json(bodyObj: unknown, status = 200, extra: Record<string, string> = {}): Response {
