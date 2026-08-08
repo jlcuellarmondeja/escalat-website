@@ -1,0 +1,106 @@
+{
+  "name": "escalat_llamada",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "escalat-llamada",
+        "authentication": "basicAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "name": "Peticion de llamada",
+      "notes": "Recibe {nombre, telefono, cuando, consentimiento, solicitadoEn, ip, sessionId} desde escalat.es/api/call. Authentication = Basic Auth con la MISMA credencial que el Chat Trigger: la web ya manda esas cabeceras."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "solicitadoEn": "={{ $json.body.solicitadoEn }}",
+            "nombre": "={{ $json.body.nombre }}",
+            "telefono": "={{ $json.body.telefono }}",
+            "cuando": "={{ $json.body.cuando }}",
+            "consentimiento": "={{ $json.body.consentimiento }}",
+            "ip": "={{ $json.body.ip }}",
+            "sessionId": "={{ $json.body.sessionId }}"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [220, 0],
+      "name": "Guardar en Sheets",
+      "notes": "Elige tu documento y una pestana nueva llamada Llamadas, con estas siete columnas en la primera fila: solicitadoEn, nombre, telefono, cuando, consentimiento, ip, sessionId"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 0],
+      "name": "Responder a la web",
+      "notes": "Va DESPUES de Sheets y ANTES de los avisos: el visitante solo ve 'apuntado' cuando el dato esta guardado de verdad, y los avisos no le hacen esperar."
+    },
+    {
+      "parameters": {
+        "sendTo": "contacto@escalat.es",
+        "subject": "=Piden que les llames: {{ $('Peticion de llamada').item.json.body.nombre }}",
+        "emailType": "text",
+        "message": "={{ $('Peticion de llamada').item.json.body.nombre }} pide que le llameis.\n\nTelefono: {{ $('Peticion de llamada').item.json.body.telefono }}\nPrefiere: {{ $('Peticion de llamada').item.json.body.cuando }}\nPedido: {{ $('Peticion de llamada').item.json.body.solicitadoEn }}\n\nConsintio: \"{{ $('Peticion de llamada').item.json.body.consentimiento }}\"\nDesde IP: {{ $('Peticion de llamada').item.json.body.ip }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [660, 0],
+      "name": "Avisar por email",
+      "notes": "Ojo: aqui $json ya es la respuesta de Sheets, no la del webhook. Por eso se referencia el nodo del webhook por su nombre."
+    },
+    {
+      "parameters": {
+        "chatId": "PON-AQUI-TU-CHAT-ID",
+        "text": "=Piden que les llames.\n\n{{ $('Peticion de llamada').item.json.body.nombre }}\nTelefono: {{ $('Peticion de llamada').item.json.body.telefono }}\nPrefiere: {{ $('Peticion de llamada').item.json.body.cuando }}\nPedido: {{ $('Peticion de llamada').item.json.body.solicitadoEn }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [880, 0],
+      "name": "Avisar por Telegram",
+      "notes": "Reutiliza el bot que ya tienes. El chatId es el mismo que usa el vigilante de citas."
+    }
+  ],
+  "connections": {
+    "Peticion de llamada": {
+      "main": [[{ "node": "Guardar en Sheets", "type": "main", "index": 0 }]]
+    },
+    "Guardar en Sheets": {
+      "main": [[{ "node": "Responder a la web", "type": "main", "index": 0 }]]
+    },
+    "Responder a la web": {
+      "main": [[{ "node": "Avisar por email", "type": "main", "index": 0 }]]
+    },
+    "Avisar por email": {
+      "main": [[{ "node": "Avisar por Telegram", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {},
+  "pinData": {}
+}
