@@ -22,8 +22,14 @@ import { ui, type Lang } from "../i18n/ui";
  * Lo poco que no está en la web y hace falta para conversar bien.
  *
  * ⚠️ Esto es lo único de este archivo escrito a mano: repásalo. Las respuestas de
- * precio y plazo están deliberadamente sin cifras (no se inventan nunca), y los
- * límites son los que evitan que el asistente diga que sí a cualquier cosa.
+ * precio y plazo están deliberadamente sin cifras (no se inventan nunca).
+ *
+ * Ojo a la diferencia entre `matices` y `limites`, que no es de matiz:
+ *   limites → el asistente lo descarta. Cierra la puerta.
+ *   matices → sí se hace, pero con condiciones que él no puede evaluar. Ahí no puede
+ *             prometer ni descartar: pregunta lo que falta y lo confirma una persona.
+ * Meter algo en la lista equivocada tiene consecuencias: en `limites` pierdes trabajos
+ * que sí querías, y en `matices` prometes cosas que a lo mejor no puedes cumplir.
  */
 const EXTRA = {
   es: {
@@ -50,11 +56,18 @@ const EXTRA = {
     ] as Array<[string, string]>,
     limites: [
       "No vendemos ni revendemos licencias de software de terceros.",
-      "No hacemos mantenimiento de equipos, redes ni soporte informático de oficina.",
       "No hacemos campañas de marketing, publicidad ni gestión de redes sociales.",
       "No somos gestoría: no llevamos contabilidad, nóminas ni impuestos.",
-      "No hacemos webs de escaparate sin automatización detrás.",
     ],
+    matices: [
+      ["Mantenimiento de equipos, redes y soporte informático",
+       "Se hace, pero depende de dónde esté el negocio: hay parte que es presencial. " +
+       "Se mira caso por caso."],
+      ["Páginas web",
+       "Sí se hacen. Lo natural en Escalat es que la web lleve automatización detrás " +
+       "(que recoja clientes, agende o responda sola), pero una web sin más también se " +
+       "puede plantear."],
+    ] as Array<[string, string]>,
   },
   en: {
     faq: [
@@ -79,11 +92,18 @@ const EXTRA = {
     ] as Array<[string, string]>,
     limites: [
       "We don't sell or resell third-party software licences.",
-      "We don't do hardware maintenance, networks or office IT support.",
       "We don't run marketing campaigns, advertising or social media management.",
       "We're not an accountancy firm: no bookkeeping, payroll or tax filing.",
-      "We don't build brochure websites with no automation behind them.",
     ],
+    matices: [
+      ["Hardware maintenance, networks and IT support",
+       "We do this, but it depends on where the business is: part of it is on site. " +
+       "It's looked at case by case."],
+      ["Websites",
+       "We do build them. At Escalat a website normally comes with automation behind it " +
+       "(capturing clients, booking, answering on its own), but a plain website is also " +
+       "on the table."],
+    ] as Array<[string, string]>,
   },
 } as const;
 
@@ -92,13 +112,13 @@ const TITULOS = {
     frase: "EN UNA FRASE", quienes: "A QUIÉN AYUDAMOS", problema: "EL PROBLEMA QUE RESOLVEMOS",
     senales: "Señales de que alguien nos necesita", servicios: "SERVICIOS",
     metodo: "CÓMO TRABAJAMOS", prueba: "UN TRABAJO REAL", valores: "CÓMO SOMOS",
-    faq: "PREGUNTAS FRECUENTES", limites: "LO QUE NO HACEMOS",
+    faq: "PREGUNTAS FRECUENTES", matices: "DEPENDE DEL CASO", limites: "LO QUE NO HACEMOS",
   },
   en: {
     frase: "IN ONE SENTENCE", quienes: "WHO WE HELP", problema: "THE PROBLEM WE SOLVE",
     senales: "Signs someone needs us", servicios: "SERVICES",
     metodo: "HOW WE WORK", prueba: "REAL WORK", valores: "WHO WE ARE",
-    faq: "FREQUENTLY ASKED", limites: "WHAT WE DON'T DO",
+    faq: "FREQUENTLY ASKED", matices: "DEPENDS ON THE CASE", limites: "WHAT WE DON'T DO",
   },
 } as const;
 
@@ -140,6 +160,9 @@ export function publico(lang: Lang = "es"): string {
 
   b.push(`\n## ${h.faq}`);
   for (const [q, a] of x.faq) b.push(`\nP: ${q}\nR: ${a}`);
+
+  b.push(`\n## ${h.matices}`);
+  for (const [tema, detalle] of x.matices) b.push(`\n### ${tema}\n${detalle}`);
 
   b.push(`\n## ${h.limites}`);
   for (const l of x.limites) b.push(`- ${l}`);
@@ -195,6 +218,16 @@ lo está pidiendo él.
 - Prometer nada que esté en la lista de LO QUE NO HACEMOS.
 - Entrar en detalle legal, contractual o de protección de datos. Ahí di que lo ve
   mejor una persona y ofrece el paso 3.
+
+## Ni sí ni no: lo que depende
+Hay cosas en DEPENDE DEL CASO que no son un no, pero tampoco un sí. Con esas no
+cierres en ninguna de las dos direcciones: haz la pregunta que falta y di con
+naturalidad que eso lo confirma una persona. Es mejor un "lo miramos" honesto que un
+sí que luego haya que retirar.
+
+En concreto, si preguntan por mantenimiento o soporte informático, hay parte
+presencial: pregunta en qué localidad está el negocio y no te comprometas con la
+respuesta. Sea cual sea la localidad, quien confirma es una persona.
 
 ## Decir que no está bien
 Si lo que necesita no es lo nuestro, díselo con claridad y, si puedes, oriéntale hacia
