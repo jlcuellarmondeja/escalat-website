@@ -3,6 +3,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { readEnv } from "../../lib/env";
 import { clientIp, consume } from "../../lib/rate-limit";
 import { n8nAuthHeaders } from "../../lib/n8n";
+import { publico, guia } from "../../contenido/conocimiento";
+import { getLang, type Lang } from "../../i18n/ui";
 
 export const prerender = false;
 
@@ -21,27 +23,6 @@ function num(name: string, fallback: number): number {
   const value = Number(readEnv(name));
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
-
-const SYSTEM_PROMPT = `Eres el asistente virtual de Escalat, una pequeña empresa de soluciones
-informáticas con inteligencia artificial para pymes y autónomos. Escalat automatiza la atención al
-cliente (chatbots y operadoras), la agenda y las citas, la gestión de clientes y proveedores, y
-cualquier tarea repetitiva, con el objetivo de que una sola persona pueda gestionar todo su negocio.
-
-Tu tono es cercano, profesional y honesto, con frases claras y breves. Responde SIEMPRE en el mismo
-idioma en que te escriba el visitante (si te escribe en inglés, responde en inglés; si en español,
-en español). No inventes precios ni plazos concretos: si te preguntan, di que se estudian según el
-caso y ofrece preparar una propuesta. No prometas cosas que no puedas saber.
-
-Tu objetivo es ayudar al visitante y, cuando encaje de forma natural (sin agobiar), reunir sus datos
-para pasar la conversación a WhatsApp: su nombre, qué necesita y una forma de contacto (email o
-teléfono). Pide los datos de uno en uno, con naturalidad.
-
-Cuando ya tengas al menos el nombre, la necesidad y un contacto (email o teléfono), incluye al FINAL
-de tu mensaje una línea con este formato exacto, en una línea aparte:
-LEAD::{"nombre":"...","necesidad":"...","contacto":"..."}
-Esa línea es solo para uso interno. En el resto de tu mensaje, invita al visitante a continuar por
-WhatsApp para terminar de concretar (aparecerá un botón). No menciones nunca la línea LEAD ni el
-formato JSON al visitante.`;
 
 interface InMsg { role: string; content: string }
 
@@ -63,7 +44,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     return json({ error: "too_large" }, 413);
   }
 
-  let body: { messages?: InMsg[]; sessionId?: string };
+  let body: { messages?: InMsg[]; sessionId?: string; lang?: string };
   try {
     const text = await request.text();
     if (text.length > MAX_BODY_BYTES) return json({ error: "too_large" }, 413);
@@ -82,16 +63,23 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     return json({ error: "bad_request" }, 400);
   }
 
+  const lang = getLang(body.lang);
+
   // Si hay webhook de n8n configurado, el cerebro del chat es el workflow de n8n.
   const n8nUrl = readEnv("N8N_CHAT_WEBHOOK_URL");
   if (n8nUrl) {
     return askN8n(n8nUrl, {
       sessionId: sanitizeSessionId(body.sessionId),
       chatInput: messages[messages.length - 1].content,
+      // Lo que el asistente sabe y cómo debe comportarse, desde el repo. El System
+      // Message de n8n solo los referencia, así que el comportamiento se cambia aquí
+      // y se despliega con la web, no a mano en el panel.
+      conocimiento: publico(lang),
+      guia: guia(),
     });
   }
 
-  return askClaude(messages);
+  return askClaude(messages, lang);
 };
 
 /**
@@ -100,7 +88,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
  */
 async function askN8n(
   url: string,
-  payload: { sessionId: string; chatInput: string }
+  payload: { sessionId: string; chatInput: string; conocimiento: string; guia: string }
 ): Promise<Response> {
   const timeout = Number(readEnv("N8N_CHAT_TIMEOUT_MS")) || 30000;
   const controller = new AbortController();
@@ -172,7 +160,11 @@ function sanitizeSessionId(value: unknown): string {
   return crypto.randomUUID();
 }
 
-async function askClaude(messages: { role: "user" | "assistant"; content: string }[]): Promise<Response> {
+/** Plan B cuando no hay n8n. Usa el mismo conocimiento y las mismas reglas. */
+async function askClaude(
+  messages: { role: "user" | "assistant"; content: string }[],
+  lang: Lang
+): Promise<Response> {
   const apiKey = readEnv("ANTHROPIC_API_KEY");
   if (!apiKey) {
     console.error("[chat] Falta N8N_CHAT_WEBHOOK_URL y ANTHROPIC_API_KEY.");
@@ -184,7 +176,7 @@ async function askClaude(messages: { role: "user" | "assistant"; content: string
     const res = await client.messages.create({
       model: MODEL,
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      system: `${publico(lang)}\n\n${guia()}`,
       messages,
     });
 
@@ -203,13 +195,15 @@ async function askClaude(messages: { role: "user" | "assistant"; content: string
 }
 
 /** Formularios que la web sabe pintar. El agente solo puede pedir uno de estos. */
-const FORMULARIOS = new Set(["contacto", "cita"]);
+const FORMULARIOS = new Set(["contacto", "cita", "llamada"]);
 
 /**
  * Separa del texto visible las señales que el agente manda a la web:
  *
  *   LEAD::{"nombre":...}  → ya tenemos los datos, muestra el botón de WhatsApp
  *   FORM::contacto        → pide los datos con un formulario en vez de a preguntas
+ *   FORM::llamada         → pide teléfono y momento para devolverle la llamada
+ *   FORM::cita            → muestra el calendario de entrevistas
  *
  * El visitante nunca ve estas líneas. El nombre del formulario se valida contra una
  * lista cerrada: los campos y sus validaciones los define la web, no el modelo.

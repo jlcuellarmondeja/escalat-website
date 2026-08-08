@@ -17,6 +17,7 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
   data-privacy={privacyHref}
   data-form-t={JSON.stringify(t.form)}
   data-cita-t={JSON.stringify(t.cita)}
+  data-llamada-t={JSON.stringify(t.llamada)}
   data-lang={getLang(locale)}
 >
   <button class="chat__launcher" data-chat-launcher aria-label={t.name} aria-expanded="false">
@@ -169,7 +170,7 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, messages: history }),
+        body: JSON.stringify({ sessionId, messages: history, lang: D.lang }),
       });
       if (res.status === 429) {
         typing.classList.remove("msg--typing");
@@ -185,6 +186,7 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
       typing.innerHTML = render(reply);
       history.push({ role: "assistant", content: reply });
       if (data && data.form === "contacto") addLeadForm();
+      if (data && data.form === "llamada") addLlamada();
       if (data && data.form === "cita") void addAgenda();
       if (data && data.lead) addWhatsAppCta(data.lead);
     } catch {
@@ -214,6 +216,7 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
   };
   const FT = leer(D.formT);
   const CT = leer(D.citaT);
+  const LT = leer(D.llamadaT);
   const LANG = D.lang === "en" ? "en-GB" : "es-ES";
 
   /** Datos ya facilitados por el visitante, para no volver a pedirlos al reservar. */
@@ -294,6 +297,110 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
     log.appendChild(el);
     log.scrollTop = log.scrollHeight;
     el.querySelector<HTMLInputElement>("#lead-name")?.focus();
+  }
+
+  // ── "Que te llamemos" ────────────────────────────────────────────────────────
+
+  /** Un teléfono utilizable: se cuentan los dígitos, se ignora cómo los escriba. */
+  const digitos = (s: string) => s.replace(/\D/g, "");
+
+  /**
+   * Pide teléfono y momento para devolver la llamada.
+   *
+   * La casilla de consentimiento no es la genérica de privacidad: es permiso expreso
+   * para llamar a ese número. Se manda al servidor el texto literal que el visitante
+   * aceptó, junto con la hora, porque una llamada comercial hay que poder justificarla.
+   */
+  function addLlamada(): void {
+    if (!log || log.querySelector("[data-llamada]")) return; // solo una vez
+
+    const cuandos: Array<[string, string]> = [
+      ["manana", LT.whenMorning || ""],
+      ["tarde", LT.whenAfternoon || ""],
+      ["cualquiera", LT.whenAny || ""],
+    ];
+    const consentTexto = `${LT.consentPre || ""}${LT.consentLink || ""}.`;
+
+    const el = document.createElement("form");
+    el.className = "lead";
+    el.setAttribute("data-llamada", "");
+    el.noValidate = true;
+    el.innerHTML = `
+      <p class="lead__title">${LT.title || ""}</p>
+      <p class="lead__intro">${LT.intro || ""}</p>
+      <label class="lead__label" for="call-name">${FT.name || ""}</label>
+      <input class="lead__input" id="call-name" name="nombre" type="text"
+             placeholder="${FT.namePh || ""}" autocomplete="name"
+             value="${(datos?.nombre || "").replace(/"/g, "&quot;")}" />
+      <label class="lead__label" for="call-phone">${FT.phone || ""}</label>
+      <input class="lead__input" id="call-phone" name="telefono" type="tel"
+             placeholder="${FT.phonePh || ""}" autocomplete="tel" required
+             value="${(datos?.telefono || "").replace(/"/g, "&quot;")}" />
+      <p class="lead__label">${LT.when || ""}</p>
+      <div class="llamada__cuando">
+        ${cuandos
+          .map(
+            ([v, txt], i) =>
+              `<label class="llamada__op"><input type="radio" name="cuando" value="${v}"${
+                i === 2 ? " checked" : ""
+              } /><span>${txt}</span></label>`
+          )
+          .join("")}
+      </div>
+      <label class="lead__consent">
+        <input type="checkbox" name="consent" />
+        <span>${LT.consentPre || ""}<a href="${D.privacy || "#"}" target="_blank" rel="noopener">${LT.consentLink || ""}</a>.</span>
+      </label>
+      <p class="lead__error" role="alert" aria-live="polite"></p>
+      <button class="lead__submit" type="submit">${LT.submit || ""}</button>
+    `;
+
+    const error = el.querySelector<HTMLParagraphElement>(".lead__error")!;
+    const button = el.querySelector<HTMLButtonElement>(".lead__submit")!;
+
+    el.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const data = new FormData(el);
+      const nombre = String(data.get("nombre") || "").trim();
+      const telefono = String(data.get("telefono") || "").trim();
+      const cuando = String(data.get("cuando") || "cualquiera");
+
+      const n = digitos(telefono).length;
+      if (n < 9 || n > 15) return void (error.textContent = LT.errPhone || "");
+      if (!data.get("consent")) return void (error.textContent = FT.errConsent || "");
+
+      error.textContent = "";
+      button.disabled = true;
+      button.textContent = LT.sending || "…";
+
+      try {
+        const res = await fetch("/api/call", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nombre, telefono, cuando, consentimiento: consentTexto, sessionId }),
+        });
+        if (!res.ok) throw new Error("bad");
+      } catch {
+        button.disabled = false;
+        button.textContent = LT.submit || "";
+        error.textContent = LT.failed || "";
+        return;
+      }
+
+      // Se queda visible pero bloqueado: el visitante ve lo que dejó.
+      el.querySelectorAll("input").forEach((i) => (i.disabled = true));
+      el.classList.add("is-sent");
+
+      datos = { nombre, email: datos?.email || "", telefono };
+
+      const etiqueta = cuandos.find(([v]) => v === cuando)?.[1] || "";
+      addMsg("bot", `✅ ${LT.done || ""} ${telefono}.`);
+      void send(`${LT.summary} ${FT.phone}: ${telefono}. ${LT.when} ${etiqueta}.`, null);
+    });
+
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+    el.querySelector<HTMLInputElement>("#call-phone")?.focus();
   }
 
   // ── Selector de cita ─────────────────────────────────────────────────────────
@@ -658,6 +765,28 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
   .chat__log :global(.cita__hora.is-on) {
     color: var(--color-bg); background: var(--color-gold); border-color: var(--color-gold); font-weight: 500;
   }
+
+  /* "¿Cuándo te llamamos?": tres opciones en píldoras, mismo lenguaje que los días. */
+  .chat__log :global(.llamada__cuando) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .chat__log :global(.llamada__op) {
+    padding: 7px 11px;
+    font-size: 12px;
+    color: var(--color-text-2);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-2);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .chat__log :global(.llamada__op input) { position: absolute; opacity: 0; pointer-events: none; }
+  .chat__log :global(.llamada__op:has(input:checked)) {
+    color: var(--color-bg); background: var(--color-gold); border-color: var(--color-gold);
+  }
+  .chat__log :global(.llamada__op:has(input:focus-visible)) { outline: 2px solid var(--color-gold); outline-offset: 2px; }
 
   .chat__log :global(.chat__wa) {
     align-self: flex-start;

@@ -22,6 +22,7 @@ Copia `.env.example` a `.env` y rellena:
 | `N8N_CHAT_BASIC_USER` / `N8N_CHAT_BASIC_PASSWORD` | Credenciales del webhook cuando el Chat Trigger usa *Basic Auth* (recomendado) | Sí, si lo proteges |
 | `N8N_CHAT_AUTH_HEADER` / `N8N_CHAT_AUTH_VALUE` | Solo si el chat pasa a un nodo *Webhook* normal, que sí tiene *Header Auth* | No |
 | `N8N_CHAT_TIMEOUT_MS` | Espera máxima al workflow. Por defecto `30000` | No |
+| `N8N_CALL_WEBHOOK_URL` | Webhook que recibe las solicitudes de "que te llamemos" | Sí, para el formulario de llamada |
 | `ANTHROPIC_API_KEY` | Clave de la API de Claude, usada **solo en el servidor**. Alternativa a n8n | Sí (si NO usas n8n) |
 | `CHAT_MODEL` | Modelo del chatbot cuando se usa Claude. Por defecto `claude-haiku-4-5` | No |
 | `CHAT_RATE_LIMIT_IP` | Mensajes por visitante y ventana. Por defecto `20` | No |
@@ -36,6 +37,7 @@ El agente puede pedirle cosas a la interfaz terminando su mensaje con una línea
 | Línea | Efecto en el chat |
 | --- | --- |
 | `FORM::contacto` | Pinta un formulario (nombre, email, teléfono) dentro del hilo |
+| `FORM::llamada` | Pide teléfono, momento preferido y consentimiento para llamar |
 | `FORM::cita` | Pinta el selector de día y hora para reservar una entrevista |
 | `LEAD::{"nombre":…,"necesidad":…,"contacto":…}` | Muestra el botón de WhatsApp ya relleno |
 
@@ -45,16 +47,50 @@ son una lista cerrada en `chat.ts`, de modo que el modelo no puede inventarse un
 
 Al enviarlo, los datos vuelven al asistente como un mensaje normal y la conversación sigue.
 
-Para activarlo, añade esto al prompt del agente en n8n:
+Cuándo usar cada marcador se le explica al agente desde
+[conocimiento.ts](src/contenido/conocimiento.ts) (ver abajo), no desde el panel de n8n.
 
-```text
-Cuando toque pedir los datos de contacto (nombre, email y teléfono), NO los pidas
-uno a uno. Escribe una frase breve anunciándolo y termina el mensaje con esta línea
-exacta, sola en su propia línea:
-FORM::contacto
-La web mostrará un formulario. No menciones nunca esa línea ni la palabra
-"formulario". Úsala una sola vez por conversación.
-```
+### Qué sabe el asistente
+
+Todo lo que el asistente puede contar de Escalat sale de
+[contenido/conocimiento.ts](src/contenido/conocimiento.ts), que **se compone a partir
+de [i18n/ui.ts](src/i18n/ui.ts)**. Es decir: los servicios que ve el visitante en la
+web y los que cuenta el bot son literalmente los mismos textos. Cambiar un servicio en
+la web lo cambia en los dos sitios a la vez.
+
+Son dos piezas con destinos distintos:
+
+| | Qué es | Quién lo ve |
+| --- | --- | --- |
+| `publico(lang)` | Servicios, método, caso real, valores, FAQ y lo que NO hacemos | Público: se sirve en `/conocimiento.txt` |
+| `guia()` | Cómo debe conversar, cómo cualificar, cuándo sacar cada formulario | Solo el servidor y n8n. **Nunca se publica** |
+
+`/api/chat` manda las dos en el cuerpo de cada mensaje a n8n, así que el System Message
+del agente es una cáscara de cinco líneas que solo las referencia (ver
+[docs/n8n-system-message.md](docs/n8n-system-message.md)). **El comportamiento del
+asistente se cambia aquí y se despliega con la web**, en vez de a mano en el panel:
+así se revisa en un diff y se puede volver atrás.
+
+`/conocimiento.txt` (y `/en/conocimiento.txt`) existen para los canales que no pueden
+recibir ese empujón —un agente de voz, otra integración— y que tienen que consultarlo
+por su cuenta. Es el mismo texto, de modo que web y teléfono cuentan lo mismo.
+
+> Ojo con qué se escribe en `publico()`: es una URL abierta. Márgenes, criterios de
+> descarte o cualquier cosa interna van en `guia()`.
+
+### Que te llamemos
+
+El hero, el pie y la sección de contacto prometen *"solicita que te llamemos"*. Ese
+formulario ahora también vive dentro del chat (`FORM::llamada`) y la petición llega a
+`/api/call` → webhook `N8N_CALL_WEBHOOK_URL`.
+
+Se manda `{action:"call", nombre, telefono, cuando, consentimiento, solicitadoEn, ip,
+sessionId}`. Los tres últimos junto a `consentimiento` no son adorno: guardan **qué
+texto aceptó esa persona y cuándo**, que es lo que respalda una llamada comercial. El
+workflow debería avisar (WhatsApp/email) y guardar la fila en Sheets.
+
+Hoy la llamada la devuelve una persona. El día que la haga un agente de voz, es este
+mismo webhook el que la lanza, sin tocar la web.
 
 ### Agenda de entrevistas
 
@@ -136,13 +172,24 @@ src/
 ├─ config.ts              # WHATSAPP_NUMBER, email y helper de enlaces WhatsApp
 ├─ components/            # Hero, Problema, Servicios, ComoFunciona, Caso, SobreEscalar,
 │                         # Contacto, ChatWidget, Header, Footer, Logo, Icon
+├─ i18n/ui.ts             # TODOS los textos de la web, en es y en
+├─ contenido/
+│  └─ conocimiento.ts     # qué sabe el asistente y cómo conversa (se compone de ui.ts)
 ├─ pages/
 │  ├─ index.astro         # portada (one-page)
 │  ├─ aviso-legal.astro   # RGPD — completar datos entre [corchetes]
 │  ├─ privacidad.astro    # RGPD — completar datos entre [corchetes]
+│  ├─ conocimiento.txt.ts # base de conocimientos pública (la consume el canal de voz)
 │  └─ api/
-│     └─ chat.ts          # chatbot con IA (Claude); devuelve el lead para el botón de WhatsApp
-└─ lib/                   # env.ts
+│     ├─ chat.ts          # proxy al agente; separa los marcadores del texto visible
+│     ├─ slots.ts         # huecos libres de la agenda
+│     ├─ book.ts          # reserva, revalidando antes de escribir
+│     └─ call.ts          # solicitudes de "que te llamemos"
+└─ lib/
+   ├─ env.ts              # lectura de variables de entorno
+   ├─ n8n.ts              # autenticación y POST a los webhooks
+   ├─ agenda.ts           # horario, márgenes y cálculo de huecos (con cambio de hora)
+   └─ rate-limit.ts       # límite por IP y global, en memoria
 ```
 
 ## Idiomas (i18n)
