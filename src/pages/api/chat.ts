@@ -224,10 +224,13 @@ function formDisponible(form: string | null): string | null {
 /**
  * Separa del texto visible las señales que el agente manda a la web:
  *
- *   LEAD::{"nombre":...}  → ya tenemos los datos, muestra el botón de WhatsApp
  *   FORM::contacto        → pide los datos con un formulario en vez de a preguntas
  *   FORM::llamada         → pide teléfono y momento para devolverle la llamada
  *   FORM::cita            → muestra el calendario de entrevistas
+ *
+ * LEAD:: ya no pinta nada: la conversación se cierra aquí o en una llamada, no
+ * mandando a la gente a WhatsApp. Se sigue recortando del texto por si el modelo lo
+ * suelta por inercia, para que el visitante no vea un JSON suelto.
  *
  * El visitante nunca ve estas líneas. El nombre del formulario se valida contra una
  * lista cerrada: los campos y sus validaciones los define la web, no el modelo.

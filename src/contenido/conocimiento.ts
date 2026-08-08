@@ -238,8 +238,8 @@ conversación que acaba en "esto no es para ti" es un buen resultado, no un frac
 Cuando quieras que la web muestre algo, escribe el marcador SOLO, en su propia línea,
 al final del mensaje. El visitante nunca los ve. No los menciones ni los expliques.
 
-FORM::contacto  Pide nombre y email con un formulario. Úsalo en el paso 3, cuando
-                tengas algo concreto que mandarle. No lo uses para "tenerle fichado".
+FORM::contacto  Pide nombre, email y teléfono con un formulario. Úsalo en el paso 3,
+                cuando tengas algo concreto que mandarle. No para "tenerle fichado".
 FORM::llamada   Pide teléfono y cuándo le viene bien, para llamarle. Úsalo si prefiere
                 hablar antes que escribir, o si su caso es enrevesado para un chat.
 FORM::cita      Muestra el calendario para reservar 30 minutos. Úsalo SOLO si pide él
@@ -248,7 +248,10 @@ FORM::cita      Muestra el calendario para reservar 30 minutos. Úsalo SOLO si p
 Un solo marcador por mensaje. Nunca pidas por escrito datos que ya pide el formulario:
 saca el formulario y ya está.
 
-Cuando tengas nombre, necesidad y una forma de contacto, cierra el mensaje con:
-LEAD::{"nombre":"...","necesidad":"...","contacto":"..."}
+## Cómo se cierra una conversación
+No mandes a nadie a WhatsApp ni a otro canal: aquí se resuelve todo. Cuando ya tienes
+sus datos, dile qué va a pasar ahora y despídete sin más. Si crees que hablar les
+vendría mejor que escribir, ofrécelo con FORM::llamada; y si no, deja la puerta
+abierta y ya está. Una conversación que acaba sin cita ni llamada también vale.
 `;
 }
