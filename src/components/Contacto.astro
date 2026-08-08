@@ -43,6 +43,11 @@ const privacyHref = legalPaths[getLang(Astro.currentLocale)].privacy;
         data-wa-when={t.waWhen}
         data-wa-need={t.waNeed}
         data-status-ok={t.statusOk}
+        data-status-err={t.statusErr}
+        data-status-err-cta={t.statusErrCta}
+        data-sending={t.sending}
+        data-submit={t.submit}
+        data-consent-text={`${t.consentPre}${t.consentLink}${t.consentPost}`}
         novalidate
       >
         <div class="field">
@@ -56,9 +61,9 @@ const privacyHref = legalPaths[getLang(Astro.currentLocale)].privacy;
         <div class="field">
           <label for="cb-when">{t.labelWhen}</label>
           <select id="cb-when" name="when">
-            <option value={t.whenMorning}>{t.whenMorning}</option>
-            <option value={t.whenAfternoon}>{t.whenAfternoon}</option>
-            <option value={t.whenAny}>{t.whenAny}</option>
+            <option value="manana">{t.whenMorning}</option>
+            <option value="tarde">{t.whenAfternoon}</option>
+            <option value="cualquiera">{t.whenAny}</option>
           </select>
         </div>
         <div class="field">
@@ -83,25 +88,74 @@ const privacyHref = legalPaths[getLang(Astro.currentLocale)].privacy;
 
   const form = document.querySelector<HTMLFormElement>("[data-callback-form]");
   const status = document.querySelector<HTMLElement>("[data-status]");
+  const submit = document.querySelector<HTMLButtonElement>(".callback-form__submit");
 
-  form?.addEventListener("submit", (e) => {
+  const ESCAPES: Record<string, string> = {
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  };
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ESCAPES[c]!);
+
+  /**
+   * Manda la petición al mismo sitio que el formulario del chat.
+   *
+   * Antes esto solo abría WhatsApp con el mensaje redactado: si la persona no le
+   * daba a enviar, la petición se perdía y aquí no quedaba ni rastro. Ahora se
+   * registra siempre, con su consentimiento y su hora, y WhatsApp queda como
+   * salida de emergencia por si la API no responde.
+   */
+  form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!form.reportValidity()) return;
+
     const d = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
     const s = form.dataset;
 
-    const msg =
-      `${s.waIntro} ${d.name}. ${s.waCall}` +
-      `\n${s.waPhone}: ${d.phone}` +
-      (d.when ? `\n${s.waWhen}: ${d.when}` : "") +
-      (d.message ? `\n${s.waNeed}: ${d.message}` : "");
-
-    window.open(waLink(msg), "_blank", "noopener");
-
-    form.reset();
+    if (submit) {
+      submit.disabled = true;
+      submit.textContent = s.sending || "…";
+    }
     if (status) {
-      status.textContent = s.statusOk || "";
-      status.className = "callback-form__status is-ok";
+      status.textContent = "";
+      status.className = "callback-form__status";
+    }
+
+    try {
+      const res = await fetch("/api/call", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: d.name,
+          telefono: d.phone,
+          cuando: d.when,
+          mensaje: d.message || "",
+          consentimiento: s.consentText || "",
+          origen: "web",
+        }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+
+      form.reset();
+      if (status) {
+        status.textContent = s.statusOk || "";
+        status.className = "callback-form__status is-ok";
+      }
+    } catch {
+      // No se pierde la persona: se le ofrece el camino manual.
+      const msg =
+        `${s.waIntro} ${d.name}. ${s.waCall}` +
+        `\n${s.waPhone}: ${d.phone}` +
+        (d.when ? `\n${s.waWhen}: ${d.when}` : "") +
+        (d.message ? `\n${s.waNeed}: ${d.message}` : "");
+      if (status) {
+        status.innerHTML =
+          `${esc(s.statusErr || "")} <a href="${esc(waLink(msg))}" target="_blank" rel="noopener">${esc(s.statusErrCta || "WhatsApp")}</a>`;
+        status.className = "callback-form__status is-err";
+      }
+    } finally {
+      if (submit) {
+        submit.disabled = false;
+        submit.textContent = s.submit || "";
+      }
     }
   });
 </script>

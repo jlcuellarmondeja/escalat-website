@@ -9,6 +9,9 @@ export const prerender = false;
 /** Momentos que ofrece el formulario. Cerrado: el resto se descarta. */
 const CUANDOS = new Set(["manana", "tarde", "cualquiera"]);
 
+/** De dónde salió la petición. Sirve para saber qué camino usa la gente. */
+const ORIGENES = new Set(["chat", "web"]);
+
 /**
  * Solicitud de que le llamemos.
  *
@@ -52,6 +55,9 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   const cuando = CUANDOS.has(cuandoBruto) ? cuandoBruto : "cualquiera";
   const consentimiento = String(body.consentimiento ?? "").trim().slice(0, 400);
   const sessionId = String(body.sessionId ?? "").replace(/[^\w-]/g, "").slice(0, 64);
+  const mensaje = String(body.mensaje ?? "").trim().slice(0, 1000);
+  const origenBruto = String(body.origen ?? "chat");
+  const origen = ORIGENES.has(origenBruto) ? origenBruto : "chat";
 
   // Se cuentan los dígitos y se ignora cómo los haya escrito: +34, espacios, guiones.
   const digitos = telefono.replace(/\D/g, "");
@@ -64,6 +70,8 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       nombre,
       telefono,
       cuando,
+      mensaje,
+      origen,
       // Prueba del consentimiento: qué aceptó, cuándo y desde dónde.
       consentimiento,
       solicitadoEn: new Date().toISOString(),

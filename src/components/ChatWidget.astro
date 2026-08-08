@@ -377,7 +377,7 @@ const privacyHref = legalPaths[getLang(locale)].privacy;
         const res = await fetch("/api/call", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nombre, telefono, cuando, consentimiento: consentTexto, sessionId }),
+          body: JSON.stringify({ nombre, telefono, cuando, consentimiento: consentTexto, sessionId, origen: "chat" }),
         });
         if (!res.ok) throw new Error("bad");
       } catch {
