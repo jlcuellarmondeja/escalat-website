@@ -114,7 +114,7 @@ async function askN8n(
     }
 
     const { reply, lead, form } = extractLead(raw);
-    return json({ reply, lead, form });
+    return json({ reply, lead, form: formDisponible(form) });
   } catch (err) {
     console.error("[chat] Error llamando a n8n:", err);
     return json({ error: "chat_error" }, 502);
@@ -187,7 +187,7 @@ async function askClaude(
       .trim();
 
     const { reply, lead, form } = extractLead(raw);
-    return json({ reply, lead, form });
+    return json({ reply, lead, form: formDisponible(form) });
   } catch (err) {
     console.error("[chat] Error llamando a Claude:", err);
     return json({ error: "chat_error" }, 502);
@@ -196,6 +196,30 @@ async function askClaude(
 
 /** Formularios que la web sabe pintar. El agente solo puede pedir uno de estos. */
 const FORMULARIOS = new Set(["contacto", "cita", "llamada"]);
+
+/** Webhook que necesita cada formulario para no acabar en un error a la cara. */
+const REQUISITOS: Record<string, string> = {
+  llamada: "N8N_CALL_WEBHOOK_URL",
+  cita: "N8N_BUSY_WEBHOOK_URL",
+};
+
+/**
+ * ¿Está montado lo que hace falta para pintar este formulario?
+ *
+ * El agente conoce los tres formularios porque se los cuenta la guía, pero un webhook
+ * puede no estar configurado todavía. Antes que ofrecer un formulario que reventará al
+ * enviarlo, se ignora la petición: el visitante se queda con el texto del mensaje, que
+ * es una respuesta perfectamente válida, y no con un error.
+ */
+function formDisponible(form: string | null): string | null {
+  if (!form) return null;
+  const variable = REQUISITOS[form];
+  if (variable && !readEnv(variable)) {
+    console.warn(`[chat] El agente pidió FORM::${form} pero falta ${variable}. Se ignora.`);
+    return null;
+  }
+  return form;
+}
 
 /**
  * Separa del texto visible las señales que el agente manda a la web:
